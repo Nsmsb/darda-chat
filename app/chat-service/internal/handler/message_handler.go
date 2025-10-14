@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -84,19 +85,19 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			fmt.Println("unmarshal error:", err)
 			continue
 		}
+		// Adding current time
+		msg.Timestamp = time.Now()
+
 		fmt.Println("new msg", msg)
 
 		// TODO: Validation
-
-		// Prepare message to send
-		broadcastData := fmt.Sprintf(`{"sender":"%s","content":"%s"}`, msg.Sender, msg.Content)
 
 		// Broadcast message to all connected clients of destination
 		handler.mutex.Lock()
 		if destConnections, ok := handler.connections[msg.Destination]; ok {
 			// Sending to all destination connections
 			for client := range destConnections.List {
-				if err := client.WriteMessage(websocket.TextMessage, []byte(broadcastData)); err != nil {
+				if err := client.WriteJSON(msg); err != nil {
 					fmt.Println("broadcast error:", err)
 					client.Close()
 					delete(destConnections.List, client)

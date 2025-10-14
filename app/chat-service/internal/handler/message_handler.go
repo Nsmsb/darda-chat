@@ -1,15 +1,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/model"
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
 )
 
 type Client struct {
@@ -17,13 +18,12 @@ type Client struct {
 }
 
 type MessageHandler struct {
-	connections map[string]*Client
-	mutex       sync.Mutex
+	messageService service.MessageService
 }
 
-func NewMessageHandler() *MessageHandler {
+func NewMessageHandler(messageService service.MessageService) *MessageHandler {
 	return &MessageHandler{
-		connections: make(map[string]*Client),
+		messageService: messageService,
 	}
 }
 
@@ -39,7 +39,7 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 	if userId == "" {
 		fmt.Println("User ID is required")
 		c.JSON(http.StatusBadRequest, gin.H{
-			"erro": "User ID is required",
+			"error": "User ID is required",
 		})
 		return
 	}
@@ -54,25 +54,24 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 	// Ensure cleanup when the function exits
 	defer func() {
 		ws.Close()
-		handler.mutex.Lock()
-		connList, ok := handler.connections[userId]
-		if !ok {
-			delete(connList.List, ws)
-		}
-		handler.mutex.Unlock()
 		fmt.Println("client disconnected and removed")
 	}()
 
-	// Add connection
-	handler.mutex.Lock()
-	connections, ok := handler.connections[userId]
-	if !ok {
-		connections = &Client{List: make(map[*websocket.Conn]bool)}
-		handler.connections[userId] = connections
-	}
-	connections.List[ws] = true
-	handler.mutex.Unlock()
+	// Reading received messages
+	go func(ctx context.Context) {
+		receivedMessages, err := handler.messageService.SubscribeToMessages(ctx, userId)
+		if err != nil {
+			fmt.Println("Error: couldn't subscribe to messages")
+			return
+		}
+		fmt.Println("subscribed to messages")
+		for receivedMsg := range receivedMessages {
+			fmt.Println("received new msg:", receivedMsg)
+			ws.WriteMessage(websocket.TextMessage, []byte(receivedMsg))
+		}
+	}(c.Request.Context())
 
+	// Reading Messages to send
 	for {
 		_, raw, err := ws.ReadMessage()
 		if err != nil {
@@ -90,20 +89,15 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 
 		fmt.Println("new msg", msg)
 
+		// Sending Message to Destination
 		// TODO: Validation
-
-		// Broadcast message to all connected clients of destination
-		handler.mutex.Lock()
-		if destConnections, ok := handler.connections[msg.Destination]; ok {
-			// Sending to all destination connections
-			for client := range destConnections.List {
-				if err := client.WriteJSON(msg); err != nil {
-					fmt.Println("broadcast error:", err)
-					client.Close()
-					delete(destConnections.List, client)
-				}
+		if strMsg, err := json.Marshal(msg); err == nil {
+			// TODO: handle err
+			err = handler.messageService.SendMessage(c, msg.Destination, string(strMsg))
+			if err != nil {
+				fmt.Println("Error to send message")
+				continue
 			}
 		}
-		handler.mutex.Unlock()
 	}
 }

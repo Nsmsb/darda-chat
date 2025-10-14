@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/handler"
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -13,8 +15,16 @@ func main() {
 	// Loading configs
 	config := config.Load()
 
+	// Preparing dependencies
+	// TODO: read from env vars
+	messageService := service.NewRedisMessageService(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
 	// Preparing handlers
-	handler := handler.NewMessageHandler()
+	handler := handler.NewMessageHandler(messageService)
 
 	// Router with Logger registered by default
 	r := gin.Default()

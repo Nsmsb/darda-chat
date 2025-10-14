@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        input {
+            margin: 5px 0;
+            padding: 5px;
+            width: 300px;
+        }
+        button {
+            padding: 5px 10px;
+            margin-top: 5px;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Client</h2>
+
+    <label for="senderInput">Enter your sender ID:</label><br>
+    <input type="text" id="senderInput" placeholder="Enter your sender ID"><br>
+    <button id="loginButton">Login & Connect</button>
+
+    <div id="chatSection" style="display:none;">
+        <label for="destinationInput">Destination:</label><br>
+        <input type="text" id="destinationInput" placeholder="Enter destination (e.g. broadcast)"><br>
+
+        <label for="contentInput">Message:</label><br>
+        <input type="text" id="contentInput" placeholder="Enter message content"><br>
+        <button onclick="sendMessage()">Send Message</button>
+
+        <h3>Messages</h3>
+        <pre id="messages"></pre>
+    </div>
+
+    <script>
+        let socket = null;
+        let senderId = "";
+
+        document.getElementById("loginButton").addEventListener("click", function() {
+            senderId = document.getElementById("senderInput").value.trim();
+            if (!senderId) {
+                alert("Please enter a sender ID");
+                return;
+            }
+
+            // Connect to WebSocket server with sender ID as query parameter
+            socket = new WebSocket(`ws://localhost:8080/api/v1/ws?id=${encodeURIComponent(senderId)}`);
+
+            socket.onopen = function() {
+                appendMessage(`✅ Connected as "${senderId}"`);
+                document.getElementById("chatSection").style.display = "block";
+                document.getElementById("senderInput").disabled = true;
+                document.getElementById("loginButton").disabled = true;
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    appendMessage(`📩 ${data.sender}: ${data.content}`);
+                } catch (e) {
+                    appendMessage("{Received (raw)}: " + event.data);
+                }
+            };
+
+            socket.onclose = function() {
+                appendMessage("❌ Disconnected from WebSocket server");
+            };
+        });
+
+        function sendMessage() {
+            const destination = document.getElementById("destinationInput").value.trim();
+            const content = document.getElementById("contentInput").value.trim();
+
+            if (!destination || !content) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            const message = {
+                sender: senderId,
+                destination: destination,
+                content: content
+            };
+
+            socket.send(JSON.stringify(message));
+            appendMessage(`📤 ${senderId}: ${content}`);
+            document.getElementById("contentInput").value = "";
+        }
+
+        function appendMessage(text) {
+            const messagesEl = document.getElementById("messages");
+            messagesEl.textContent += text + "\n";
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+    </script>
+</body>
+</html>

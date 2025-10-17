@@ -22,18 +22,38 @@ func (service *RedisMessageService) SendMessage(ctx context.Context, destination
 }
 
 func (service *RedisMessageService) SubscribeToMessages(ctx context.Context, channel string) (<-chan string, error) {
-	// Subscribing to messages channel
-	redisChan := service.client.Subscribe(ctx, fmt.Sprintf("user:%s", channel)).Channel()
-	// Creating the channel to return
+	// Subscribing to Redis messages channel
+	redisPubSub := service.client.Subscribe(ctx, fmt.Sprintf("user:%s", channel))
+	redisChan := redisPubSub.Channel()
+
+	// Channel to return to caller
 	msgCh := make(chan string)
 
-	// Go routing to convert redis.Message channel to string channel
-	go func(ctx context.Context) {
+	go func() {
 		defer close(msgCh)
-		for msg := range redisChan {
-			msgCh <- msg.Payload
+		defer redisPubSub.Close() // ensure Redis subscription is closed
+
+		for {
+			select {
+			case <-ctx.Done():
+				// Context canceled, stop goroutine
+				fmt.Println("Subscription canceled for channel", channel)
+				return
+			case msg, ok := <-redisChan:
+				if !ok {
+					// Redis channel closed
+					return
+				}
+				select {
+				case msgCh <- msg.Payload:
+					// message sent to caller
+				case <-ctx.Done():
+					// Context canceled while sending
+					return
+				}
+			}
 		}
-	}(ctx)
+	}()
 
 	return msgCh, nil
 }

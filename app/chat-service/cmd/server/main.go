@@ -13,14 +13,17 @@ import (
 func main() {
 
 	// Loading configs
-	config := config.Load()
+	config, err := config.Load()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load config: %v", err))
+	}
 
 	// Preparing dependencies
 	// TODO: read from env vars
 	messageService := service.NewRedisMessageService(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     config.REDIS_ADDR,
+		Password: config.REDIS_PASS,
+		DB:       config.REDIS_DB,
 	})
 
 	// Preparing handlers

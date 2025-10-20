@@ -30,6 +30,9 @@ Used environment variables
 From the chat-service directory:
 ```bash
 cd app/chat-service
+# Run Redis if not running
+docker run -d --name redis -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+# Run Chat-service
 PORT=8080 REDIS_ADDR=localhost:6379 go run ./cmd/server/main.go
 ```
 

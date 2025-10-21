@@ -93,7 +93,7 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 		// TODO: Validation
 		if strMsg, err := json.Marshal(msg); err == nil {
 			// TODO: handle err
-			err = handler.messageService.SendMessage(c, msg.Destination, string(strMsg))
+			err = handler.messageService.SendMessage(c.Request.Context(), msg.Destination, string(strMsg))
 			if err != nil {
 				fmt.Println("Error to send message")
 				continue

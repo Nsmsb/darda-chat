@@ -21,9 +21,9 @@ func main() {
 	// Preparing dependencies
 	// TODO: read from env vars
 	messageService := service.NewRedisMessageService(&redis.Options{
-		Addr:     config.REDIS_ADDR,
-		Password: config.REDIS_PASS,
-		DB:       config.REDIS_DB,
+		Addr:     config.RedisAddr,
+		Password: config.RedisPass,
+		DB:       config.RedisDB,
 	})
 
 	// Preparing handlers

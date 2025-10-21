@@ -7,10 +7,10 @@ import (
 
 // Config holds the configuration values for the application.
 type Config struct {
-	Port       string
-	REDIS_ADDR string
-	REDIS_PASS string
-	REDIS_DB   int
+	Port      string
+	RedisAddr string
+	RedisPass string
+	RedisDB   int
 }
 
 // Load reads configuration from environment variables and returns a Config struct.
@@ -21,10 +21,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	return &Config{
-		Port:       getEnv("PORT", "8080"),
-		REDIS_ADDR: getEnv("REDIS_ADDR", "localhost:6379"),
-		REDIS_PASS: getEnv("REDIS_PASS", ""),
-		REDIS_DB:   redisDB,
+		Port:      getEnv("PORT", "8080"),
+		RedisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPass: getEnv("REDIS_PASS", ""),
+		RedisDB:   redisDB,
 	}, nil
 }
 

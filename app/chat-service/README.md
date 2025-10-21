@@ -23,7 +23,7 @@ Configuration is loaded from environment variables at startup. See app/chat-serv
 Used environment variables
 - PORT (string) — server port the HTTP/WebSocket listener binds to. Default: `8080`.
 - REDIS_ADDR (string) — Redis address. Default: `localhost:6379`.
-- REDIS_PASSWORD (string) — Redis password (if any). Default: empty.
+- REDIS_PASS (string) — Redis password (if any). Default: empty.
 - REDIS_DB (int) — Redis database index. Default: `0`.
 
 ## Run (development)

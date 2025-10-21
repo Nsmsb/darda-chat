@@ -13,10 +13,6 @@ import (
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
 )
 
-type Client struct {
-	List map[*websocket.Conn]bool
-}
-
 type MessageHandler struct {
 	messageService service.MessageService
 }
@@ -84,8 +80,8 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			fmt.Println("unmarshal error:", err)
 			continue
 		}
-		// Adding current time
-		msg.Timestamp = time.Now()
+		// Adding current time in UTC to avoid server-local timezone differences
+		msg.Timestamp = time.Now().UTC()
 
 		fmt.Println("new msg", msg)
 

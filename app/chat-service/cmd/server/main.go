@@ -19,12 +19,17 @@ func main() {
 	}
 
 	// Preparing dependencies
-	// TODO: read from env vars
 	messageService := service.NewRedisMessageService(&redis.Options{
 		Addr:     config.RedisAddr,
 		Password: config.RedisPass,
 		DB:       config.RedisDB,
 	})
+	// Closing Connection Gracefully on exit
+	defer func() {
+		if err := messageService.Close(); err != nil {
+			fmt.Printf("Error closing Redis client: %v\n", err)
+		}
+	}()
 
 	// Preparing handlers
 	handler := handler.NewMessageHandler(messageService)

@@ -66,22 +66,31 @@ func (conn *RedisConnection) RemoveSubscriber(ch <-chan string) error {
 	if !exists {
 		return fmt.Errorf("subscriber channel not found")
 	}
+	// Updating subscriber count and closing the channel
 	conn.Count--
 	close(biCh)
 	delete(conn.Subscribers, ch)
+
 	return nil
+}
+
+// SubscriberCount returns the number of active subscribers
+func (conn *RedisConnection) SubscriberCount() int {
+	conn.m.Lock()
+	defer conn.m.Unlock()
+	return conn.Count
 }
 
 // Close closes the Redis PubSub connection and all subscriber channels
 func (conn *RedisConnection) Close() error {
+	conn.m.Lock()
+	defer conn.m.Unlock()
 	// Close the Redis PubSub connection
 	err := conn.Conn.Close()
 	if err != nil {
 		return err
 	}
 	// Close all subscriber channels
-	conn.m.Lock()
-	defer conn.m.Unlock()
 	for _, ch := range conn.Subscribers {
 		close(ch)
 		conn.Count--

@@ -31,6 +31,8 @@ func (conn *RedisConnection) StartReading() {
 
 			redisChan := conn.Conn.Channel()
 			for msg := range redisChan {
+				// TODO: use buffered channels to avoid blocking
+				// TODO: handle slow subscribers
 				conn.m.Lock()
 				for ch := range conn.Subscribers {
 					biCh := conn.Subscribers[ch]

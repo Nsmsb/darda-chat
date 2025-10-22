@@ -35,10 +35,10 @@ func (service *RedisMessageService) SubscribeToMessages(ctx context.Context, cha
 		redisPubSub := service.client.Subscribe(ctx, fmt.Sprintf("user:%s", channel))
 		conn = NewRedisConnection(redisPubSub)
 		service.connections[channel] = conn
-		// Start reading messages from Redis since it's the first connection
-		conn.StartReading()
 	}
 	service.m.Unlock()
+	// Start reading messages from Redis since it's the first connection
+	conn.StartReading()
 
 	return conn.NewSubscriber(), nil
 }

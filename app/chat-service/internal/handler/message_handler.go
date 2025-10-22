@@ -55,15 +55,32 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 
 	// Reading received messages
 	go func(ctx context.Context) {
-		receivedMessages, err := handler.messageService.SubscribeToMessages(ctx, userId)
+		incomingMessages, err := handler.messageService.SubscribeToMessages(ctx, userId)
+		fmt.Println("subscribed to messages")
 		if err != nil {
 			fmt.Println("Error: couldn't subscribe to messages")
 			return
 		}
-		fmt.Println("subscribed to messages")
-		for receivedMsg := range receivedMessages {
-			fmt.Println("received new msg:", receivedMsg)
-			ws.WriteMessage(websocket.TextMessage, []byte(receivedMsg))
+
+		// Making sure to unsubscribe when done
+		defer func() {
+			fmt.Println("unsubscribing client from messages")
+			handler.messageService.UnsubscribeFromMessages(userId, incomingMessages)
+		}()
+
+		// Listening for incoming messages and forwarding to WebSocket
+		select {
+		case msg, ok := <-incomingMessages:
+			if !ok {
+				fmt.Println("incoming messages channel closed")
+				return
+			}
+			// Forwarding message to WebSocket
+			ws.WriteMessage(websocket.TextMessage, []byte(msg))
+
+		case <-ctx.Done():
+			fmt.Println("context done, exiting message listener")
+			return
 		}
 	}(c.Request.Context())
 
@@ -91,7 +108,7 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			// TODO: handle err
 			err = handler.messageService.SendMessage(c.Request.Context(), msg.Destination, string(strMsg))
 			if err != nil {
-				fmt.Println("Error to send message")
+				fmt.Println("Error to send message", err)
 				continue
 			}
 		}

@@ -50,7 +50,23 @@ func (service *RedisMessageService) UnsubscribeFromMessages(channel string, msgC
 	if !exists {
 		return fmt.Errorf("no connection found for channel %s", channel)
 	}
-	return conn.RemoveSubscriber(msgCh)
+	// Remove the subscriber channel
+	err := conn.RemoveSubscriber(msgCh)
+	if err != nil {
+		return err
+	}
+
+	// If there are no more subscribers, remove the connection
+	if conn.SubscriberCount() == 0 {
+		fmt.Println("No more subscribers, closing connection for channel", channel)
+		err := conn.Close()
+		if err != nil {
+			return err
+		}
+		delete(service.connections, channel)
+	}
+
+	return err
 }
 
 func (service *RedisMessageService) Close() error {

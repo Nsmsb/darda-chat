@@ -3,17 +3,21 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisMessageService struct {
-	client *redis.Client
+	client      *redis.Client
+	connections map[string]Connection
+	m           sync.Mutex
 }
 
 func NewRedisMessageService(options *redis.Options) *RedisMessageService {
 	return &RedisMessageService{
-		client: redis.NewClient(options),
+		client:      redis.NewClient(options),
+		connections: make(map[string]Connection),
 	}
 }
 
@@ -22,42 +26,39 @@ func (service *RedisMessageService) SendMessage(ctx context.Context, destination
 }
 
 func (service *RedisMessageService) SubscribeToMessages(ctx context.Context, channel string) (<-chan string, error) {
+
 	// Subscribing to Redis messages channel
-	redisPubSub := service.client.Subscribe(ctx, fmt.Sprintf("user:%s", channel))
-	redisChan := redisPubSub.Channel()
+	service.m.Lock()
+	conn, exists := service.connections[channel]
+	// Creating the channel connection if it doesn't exist
+	if !exists {
+		redisPubSub := service.client.Subscribe(ctx, fmt.Sprintf("user:%s", channel))
+		conn = NewRedisConnection(redisPubSub)
+		service.connections[channel] = conn
+		// Start reading messages from Redis since it's the first connection
+		conn.StartReading()
+	}
+	service.m.Unlock()
 
-	// Channel to return to caller
-	msgCh := make(chan string)
+	return conn.NewSubscriber(), nil
+}
 
-	go func() {
-		defer close(msgCh)
-		defer redisPubSub.Close() // ensure Redis subscription is closed
-
-		for {
-			select {
-			case <-ctx.Done():
-				// Context canceled, stop goroutine
-				fmt.Println("Subscription canceled for channel", channel)
-				return
-			case msg, ok := <-redisChan:
-				if !ok {
-					// Redis channel closed
-					return
-				}
-				select {
-				case msgCh <- msg.Payload:
-					// message sent to caller
-				case <-ctx.Done():
-					// Context canceled while sending
-					return
-				}
-			}
-		}
-	}()
-
-	return msgCh, nil
+func (service *RedisMessageService) UnsubscribeFromMessages(channel string, msgCh <-chan string) error {
+	service.m.Lock()
+	defer service.m.Unlock()
+	conn, exists := service.connections[channel]
+	if !exists {
+		return fmt.Errorf("no connection found for channel %s", channel)
+	}
+	return conn.RemoveSubscriber(msgCh)
 }
 
 func (service *RedisMessageService) Close() error {
+	service.m.Lock()
+	defer service.m.Unlock()
+	// Close all connections
+	for _, conn := range service.connections {
+		conn.Close()
+	}
 	return service.client.Close()
 }

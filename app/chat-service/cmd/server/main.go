@@ -46,7 +46,7 @@ func main() {
 	api.GET("/ws", handler.HandleConnections)
 
 	// Running Server
-	addr := fmt.Sprintf(":%s", config.Port)
+	addr := fmt.Sprintf("0.0.0.0:%s", config.Port)
 	fmt.Printf("WebSocket server started on %s\n", addr)
 	r.Run(addr)
 

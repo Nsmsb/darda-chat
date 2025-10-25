@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: darda-chat
+build:
+  artifacts:
+    - image: nsmsb/chat-service
+      context: app/chat-service
+      docker:
+        dockerfile: Dockerfile
+manifests:
+  rawYaml:
+    - manifests/chat-service/deployment.yaml
+    - manifests/chat-service/service.yaml
+    - manifests/redis/deployment.yaml
+    - manifests/redis/service.yaml

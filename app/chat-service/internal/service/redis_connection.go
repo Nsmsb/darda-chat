@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -28,15 +29,27 @@ func (conn *RedisConnection) StartReading() {
 	// Ensure the reading goroutine is started only once per user
 	conn.startOnce.Do(func() {
 		go func() {
-
+			defer fmt.Println("Stopped reading from Redis for a connection")
 			redisChan := conn.Conn.Channel()
 			for msg := range redisChan {
-				// TODO: use buffered channels to avoid blocking
-				// TODO: handle slow subscribers
 				conn.m.Lock()
 				for ch := range conn.Subscribers {
-					biCh := conn.Subscribers[ch]
-					biCh <- msg.Payload
+					select {
+					case conn.Subscribers[ch] <- msg.Payload:
+						// Message sent successfully
+					case <-time.After(time.Millisecond * 100):
+						// Timeout ended, subscriber is not receiving messages or so slow
+						fmt.Println("Subscriber is not receiving messages, removing subscriber")
+						close(conn.Subscribers[ch])
+						delete(conn.Subscribers, ch)
+						conn.Count--
+						if conn.Count <= 0 {
+							// No more subscribers, exit reading loop
+							conn.m.Unlock()
+							fmt.Println("No more subscribers, exiting reading loop")
+							return
+						}
+					}
 				}
 				conn.m.Unlock()
 			}
@@ -46,8 +59,9 @@ func (conn *RedisConnection) StartReading() {
 
 // AddSubscriber adds a subscriber channel to the connections
 func (conn *RedisConnection) NewSubscriber() <-chan string {
-	// Creating a new channel for the subscriber
-	ch := make(chan string)
+	// Creating a new buffered channel for the subscriber
+	// So the sender won't be blocked if the receiver is slow
+	ch := make(chan string, 30)
 
 	conn.m.Lock()
 	defer conn.m.Unlock()

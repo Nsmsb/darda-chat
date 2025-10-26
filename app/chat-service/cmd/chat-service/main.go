@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -18,12 +19,22 @@ func main() {
 		panic(fmt.Sprintf("Failed to load config: %v", err))
 	}
 
-	// Preparing dependencies
-	messageService := service.NewRedisMessageService(&redis.Options{
+	// Preparing dependencies for Handlers
+
+	// Connection to Redis
+	redisClient := redis.NewClient(&redis.Options{
 		Addr:     config.RedisAddr,
 		Password: config.RedisPass,
 		DB:       config.RedisDB,
 	})
+	// Testing Redis connection
+	_, err = redisClient.Ping(context.Background()).Result()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
+	}
+
+	// Preparing Message Service
+	messageService := service.NewRedisMessageService(redisClient)
 	// Closing Connection Gracefully on exit
 	defer func() {
 		if err := messageService.Close(); err != nil {
@@ -49,5 +60,4 @@ func main() {
 	addr := fmt.Sprintf("0.0.0.0:%s", config.Port)
 	fmt.Printf("WebSocket server started on %s\n", addr)
 	r.Run(addr)
-
 }

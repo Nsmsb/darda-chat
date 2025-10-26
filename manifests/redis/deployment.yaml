@@ -26,5 +26,11 @@ spec:
           limits:
             cpu: 200m
             memory: 256Mi
-        # In dev, no password — keep it simple
-        command: ["redis-server", "--save", "", "--protected-mode", "no"]
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        # In dev, no persistent storage — keep it simple for now
+        command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "$(REDIS_PASSWORD)"]

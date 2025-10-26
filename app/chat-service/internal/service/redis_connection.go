@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,7 +38,7 @@ func (conn *RedisConnection) StartReading() {
 					select {
 					case conn.Subscribers[ch] <- msg.Payload:
 						// Message sent successfully
-					case <-time.After(time.Millisecond * 100):
+					case <-time.After(time.Millisecond * 500):
 						// Timeout ended, subscriber is not receiving messages or so slow
 						fmt.Println("Subscriber is not receiving messages, removing subscriber")
 						close(conn.Subscribers[ch])
@@ -61,7 +62,8 @@ func (conn *RedisConnection) StartReading() {
 func (conn *RedisConnection) NewSubscriber() <-chan string {
 	// Creating a new buffered channel for the subscriber
 	// So the sender won't be blocked if the receiver is slow
-	ch := make(chan string, 30)
+	config, _ := config.Get()
+	ch := make(chan string, config.SubsChanBufferSize)
 
 	conn.m.Lock()
 	defer conn.m.Unlock()

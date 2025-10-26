@@ -40,3 +40,8 @@ spec:
             secretKeyRef:
               name: chat-service-secret
               key: redis-password
+        - name: SUBS_CHAN_BUFFER_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SUBS_CHAN_BUFFER_SIZE

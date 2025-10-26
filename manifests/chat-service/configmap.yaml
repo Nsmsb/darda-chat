@@ -6,3 +6,4 @@ data:
   PORT: "8080"
   REDIS_ADDR: "redis:6379"
   REDIS_DB: "0"
+  SUBS_CHAN_BUFFER_SIZE: "30"

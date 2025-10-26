@@ -26,6 +26,17 @@ spec:
         - containerPort: 8080
         env:
         - name: REDIS_ADDR
-          value: "redis:6379"
-        - name: PORT
-          value: "8080"
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: REDIS_ADDR
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: REDIS_DB
+        - name: REDIS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: redis-password

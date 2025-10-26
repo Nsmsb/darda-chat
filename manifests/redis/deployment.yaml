@@ -42,6 +42,8 @@ spec:
           exec:
             command:
               - redis-cli
+              - -a
+              - "$REDIS_PASSWORD"
               - ping
           initialDelaySeconds: 5
           periodSeconds: 5

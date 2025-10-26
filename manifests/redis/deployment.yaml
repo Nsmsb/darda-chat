@@ -32,5 +32,9 @@ spec:
             secretKeyRef:
               name: redis-secret
               key: redis-password
-        # In dev, no persistent storage — keep it simple for now
-        command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "$(REDIS_PASSWORD)"]
+        # In dev, no persistent storage — we keep it simple for now
+        command:
+        - sh
+        - -c
+        - |
+          exec redis-server --save "" --appendonly no --requirepass "$REDIS_PASSWORD"

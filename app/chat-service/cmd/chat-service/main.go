@@ -13,7 +13,7 @@ import (
 func main() {
 
 	// Loading configs
-	config, err := config.Load()
+	config, err := config.Get()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load config: %v", err))
 	}

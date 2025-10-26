@@ -3,29 +3,45 @@ package config
 import (
 	"os"
 	"strconv"
+	"sync"
 )
 
 // Config holds the configuration values for the application.
 type Config struct {
-	Port      string
-	RedisAddr string
-	RedisPass string
-	RedisDB   int
+	Port               string
+	RedisAddr          string
+	RedisPass          string
+	RedisDB            int
+	SubsChanBufferSize int
 }
 
-// Load reads configuration from environment variables and returns a Config struct.
-func Load() (*Config, error) {
-	// Read REDIS_DB as an integer
-	redisDB, err := strconv.Atoi(getEnv("REDIS_DB", "0"))
-	if err != nil {
-		return nil, err
-	}
-	return &Config{
-		Port:      getEnv("PORT", "8080"),
-		RedisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
-		RedisPass: getEnv("REDIS_PASS", ""),
-		RedisDB:   redisDB,
-	}, nil
+var (
+	instance *Config
+	once     sync.Once
+)
+
+// Get returns the singleton instance of Config, it reads the configs only once.
+func Get() (*Config, error) {
+	var err error
+	once.Do(func() {
+		var redisDB, subsChanBufferSize int
+		redisDB, err = strconv.Atoi(getEnv("REDIS_DB", "0"))
+		if err != nil {
+			return
+		}
+		subsChanBufferSize, err = strconv.Atoi(getEnv("SUBS_CHAN_BUFFER_SIZE", "30"))
+		if err != nil {
+			return
+		}
+		instance = &Config{
+			Port:               getEnv("PORT", "8080"),
+			RedisAddr:          getEnv("REDIS_ADDR", "localhost:6379"),
+			RedisPass:          getEnv("REDIS_PASS", ""),
+			RedisDB:            redisDB,
+			SubsChanBufferSize: subsChanBufferSize,
+		}
+	})
+	return instance, err
 }
 
 // getEnv retrieves the value of the environment variable named by the key.

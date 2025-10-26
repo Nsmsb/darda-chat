@@ -12,6 +12,24 @@ spec:
       labels:
         app: chat-service
     spec:
+      initContainers:
+      - name: wait-for-redis
+        image: busybox:1.36
+        env:
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: REDIS_ADDR
+        command:
+          - sh
+          - -c
+          - |
+            until nc -z "$REDIS_ADDR" 6379; do
+              echo "Waiting for Redis to accept connections..."
+              sleep 2
+            done
+            echo "Redis is up!"
       containers:
       - name: chat-service
         image: nsmsb/chat-service:v0.0.1

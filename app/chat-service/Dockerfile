@@ -1,11 +1,10 @@
 # Dockerfile for chat-service (multi-stage, reproducible, small final image)
-# Build with: docker build -t chat-service:latest .
 # Optional: docker build --progress=plain --build-arg BUILD_DIR=./cmd/chat-service .
-# Requires BuildKit for cache mounts (recommended).
+# TODO: BuildKit for cache mounts.
 
 # ---------- builder ----------
 FROM golang:1.24-bullseye AS builder
-ARG BUILD_DIR=./cmd/server
+ARG BUILD_DIR=./cmd/chat-service
 ARG GOOS=linux
 ARG GOARCH=amd64
 ARG CGO_ENABLED=0

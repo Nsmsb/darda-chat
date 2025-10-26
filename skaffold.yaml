@@ -10,7 +10,5 @@ build:
         dockerfile: Dockerfile
 manifests:
   rawYaml:
-    - manifests/chat-service/deployment.yaml
-    - manifests/chat-service/service.yaml
-    - manifests/redis/deployment.yaml
-    - manifests/redis/service.yaml
+    - manifests/chat-service/*.yaml
+    - manifests/redis/*.yaml

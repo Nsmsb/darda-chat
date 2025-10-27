@@ -13,17 +13,22 @@ import (
 func main() {
 
 	// Loading configs
-	config, err := config.Load()
+	config, err := config.Get()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load config: %v", err))
 	}
 
-	// Preparing dependencies
-	messageService := service.NewRedisMessageService(&redis.Options{
+	// Preparing dependencies for Handlers
+
+	// Connection to Redis
+	redisClient := redis.NewClient(&redis.Options{
 		Addr:     config.RedisAddr,
 		Password: config.RedisPass,
 		DB:       config.RedisDB,
 	})
+
+	// Preparing Message Service
+	messageService := service.NewRedisMessageService(redisClient)
 	// Closing Connection Gracefully on exit
 	defer func() {
 		if err := messageService.Close(); err != nil {
@@ -32,22 +37,26 @@ func main() {
 	}()
 
 	// Preparing handlers
-	handler := handler.NewMessageHandler(messageService)
+	messageHandler := handler.NewMessageHandler(messageService)
 
 	// Router with Logger registered by default
 	r := gin.Default()
 
 	// TODO: Add Error middleware
 
+	// Adding Health Handler
+	healthHandler := handler.NewHealthHandler()
+	r.GET("/healthz", healthHandler.Liveness)
+	r.GET("/readyz", healthHandler.Readiness)
+
 	// Grouping endpoint in /api/v1
 	api := r.Group("/api/v1")
 
 	// Adding connections handler
-	api.GET("/ws", handler.HandleConnections)
+	api.GET("/ws", messageHandler.HandleConnections)
 
 	// Running Server
-	addr := fmt.Sprintf(":%s", config.Port)
+	addr := fmt.Sprintf("0.0.0.0:%s", config.Port)
 	fmt.Printf("WebSocket server started on %s\n", addr)
 	r.Run(addr)
-
 }

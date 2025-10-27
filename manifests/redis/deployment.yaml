@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis/redis-stack:7.2.0-v19
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        # In dev, no persistent storage — we keep it simple for now
+        command:
+        - sh
+        - -c
+        - |
+          exec redis-server --save "" --appendonly no --requirepass "$REDIS_PASSWORD"
+        readinessProbe:
+          exec:
+            command:
+              - redis-cli
+              - -a
+              - "$REDIS_PASSWORD"
+              - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3

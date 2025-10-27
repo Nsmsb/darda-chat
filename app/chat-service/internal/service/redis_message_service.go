@@ -14,9 +14,9 @@ type RedisMessageService struct {
 	m           sync.Mutex
 }
 
-func NewRedisMessageService(options *redis.Options) *RedisMessageService {
+func NewRedisMessageService(client *redis.Client) *RedisMessageService {
 	return &RedisMessageService{
-		client:      redis.NewClient(options),
+		client:      client,
 		connections: make(map[string]Connection),
 	}
 }

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      containers:
+      - name: chat-service
+        image: nsmsb/chat-service:v0.0.1
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8080
+        env:
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: REDIS_ADDR
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: REDIS_DB
+        - name: REDIS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: redis-password
+        - name: SUBS_CHAN_BUFFER_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SUBS_CHAN_BUFFER_SIZE
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10

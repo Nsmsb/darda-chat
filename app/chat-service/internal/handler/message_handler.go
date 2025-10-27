@@ -69,18 +69,20 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 		}()
 
 		// Listening for incoming messages and forwarding to WebSocket
-		select {
-		case msg, ok := <-incomingMessages:
-			if !ok {
-				fmt.Println("incoming messages channel closed")
+		for {
+			select {
+			case msg, ok := <-incomingMessages:
+				if !ok {
+					fmt.Println("incoming messages channel closed")
+					return
+				}
+				// Forwarding message to WebSocket
+				ws.WriteMessage(websocket.TextMessage, []byte(msg))
+
+			case <-ctx.Done():
+				fmt.Println("context done, exiting message listener")
 				return
 			}
-			// Forwarding message to WebSocket
-			ws.WriteMessage(websocket.TextMessage, []byte(msg))
-
-		case <-ctx.Done():
-			fmt.Println("context done, exiting message listener")
-			return
 		}
 	}(c.Request.Context())
 

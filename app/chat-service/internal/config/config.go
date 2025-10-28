@@ -13,6 +13,7 @@ type Config struct {
 	RedisPass          string
 	RedisDB            int
 	SubsChanBufferSize int
+	Env                string
 }
 
 var (
@@ -39,6 +40,7 @@ func Get() (*Config, error) {
 			RedisPass:          getEnv("REDIS_PASS", ""),
 			RedisDB:            redisDB,
 			SubsChanBufferSize: subsChanBufferSize,
+			Env:                getEnv("ENV", "development"),
 		}
 	})
 	return instance, err

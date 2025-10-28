@@ -6,7 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/handler"
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/middleware"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
+	"github.com/nsmsb/darda-chat/app/chat-service/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -16,6 +18,11 @@ func main() {
 	config, err := config.Get()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load config: %v", err))
+	}
+
+	// setting Gin to Release mode in production
+	if config.Env == "production" {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// Preparing dependencies for Handlers
@@ -36,12 +43,19 @@ func main() {
 		}
 	}()
 
+	// Preparing logger
+	logger := logger.GetLogger()
+	defer logger.Sync()
+
 	// Preparing handlers
 	messageHandler := handler.NewMessageHandler(messageService)
 
-	// Router with Logger registered by default
-	r := gin.Default()
+	// Router with no middlewares
+	r := gin.New()
 
+	// Adding Middlewares
+	r.Use(gin.Recovery())
+	r.Use(middleware.ZapLogger(logger))
 	// TODO: Add Error middleware
 
 	// Adding Health Handler

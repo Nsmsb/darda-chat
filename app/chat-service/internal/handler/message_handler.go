@@ -11,15 +11,19 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/model"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
+	"github.com/nsmsb/darda-chat/app/chat-service/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type MessageHandler struct {
 	messageService service.MessageService
+	logger         *zap.Logger
 }
 
 func NewMessageHandler(messageService service.MessageService) *MessageHandler {
 	return &MessageHandler{
 		messageService: messageService,
+		logger:         logger.GetLogger(),
 	}
 }
 

@@ -53,12 +53,7 @@ func main() {
 
 	// Router with no middlewares
 	r := gin.New()
-
-	// Adding Middlewares
 	r.Use(gin.Recovery())
-	r.Use(middleware.RequestIDMiddleware())
-	r.Use(middleware.ZapLogger(logger))
-	// TODO: Add Error middleware
 
 	// Adding Health Handler
 	healthHandler := handler.NewHealthHandler()
@@ -67,6 +62,11 @@ func main() {
 
 	// Grouping endpoint in /api/v1
 	api := r.Group("/api/v1")
+
+	// Adding Middlewares
+	api.Use(middleware.RequestIDMiddleware())
+	api.Use(middleware.ZapLogger(logger))
+	// TODO: Add Error middleware
 
 	// Adding connections handler
 	api.GET("/ws", messageHandler.HandleConnections)

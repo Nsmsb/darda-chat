@@ -39,8 +39,11 @@ func main() {
 		DB:       config.RedisDB,
 	})
 
+	// Preparing AMQP Publisher
+	publisher := service.NewAMQPPublisher()
+
 	// Preparing Message Service
-	messageService := service.NewRedisMessageService(redisClient)
+	messageService := service.NewRedisMessageService(redisClient, publisher)
 	// Closing Connection Gracefully on exit
 	defer func() {
 		if err := messageService.Close(); err != nil {

@@ -5,23 +5,33 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisMessageService struct {
 	client      *redis.Client
+	publisher   Publisher
 	connections map[string]Connection
 	m           sync.Mutex
 }
 
-func NewRedisMessageService(client *redis.Client) *RedisMessageService {
+func NewRedisMessageService(client *redis.Client, publisher Publisher) *RedisMessageService {
 	return &RedisMessageService{
 		client:      client,
+		publisher:   publisher,
 		connections: make(map[string]Connection),
 	}
 }
 
 func (service *RedisMessageService) SendMessage(ctx context.Context, destination string, msg string) error {
+	config, _ := config.Get()
+	// Publishing message to message queue
+	err := service.publisher.Publish(ctx, msg, config.MsgQueue)
+	if err != nil {
+		return err
+	}
+	// Publishing message to Redis channel for real-time delivery
 	return service.client.Publish(ctx, fmt.Sprintf("user:%s", destination), msg).Err()
 }
 

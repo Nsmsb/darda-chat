@@ -2,7 +2,7 @@
 
 Scalable chat application (Go, MongoDB, Redis, RabbitMQ)
 
-![Design of Darda-chat](https://github.com/user-attachments/assets/c0976fa7-8e4b-4b57-8ad0-b2a402a8330d)
+![Design of Darda-chat](https://github.com/user-attachments/assets/490485b0-9ec7-491b-9a85-d3e498ac21f7)
 
 ## Prerequisites
 

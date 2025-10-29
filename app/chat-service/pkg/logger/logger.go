@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -29,4 +30,15 @@ func GetLogger() *zap.Logger {
 		}
 	})
 	return log
+}
+
+// GetFromContext retrieves a zap.Logger from the Gin context, or returns the global logger if not found
+func GetFromContext(c *gin.Context) *zap.Logger {
+	if logger, exists := c.Get("logger"); exists {
+		if zapLogger, ok := logger.(*zap.Logger); ok {
+			return zapLogger
+		}
+	}
+	// Fallback to global logger if not found in context
+	return GetLogger()
 }

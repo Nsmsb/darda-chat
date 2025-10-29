@@ -105,10 +105,16 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 	for {
 		_, raw, err := ws.ReadMessage()
 		if err != nil {
-			log.Error("Error reading message", zap.String("user_id", userId), zap.Error(err))
+			// Check if closed error is because user is disconnected
+			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+				log.Info("Connection closed by client", zap.String("user_id", userId))
+			} else {
+				log.Error("Error reading from WebSocket", zap.String("user_id", userId), zap.Error(err))
+			}
 			break
 		}
 
+		// Unmarshal incoming message
 		var msg model.Message
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			log.Error("Failed to unmarshal message", zap.String("user_id", userId), zap.Error(err))

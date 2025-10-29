@@ -12,3 +12,4 @@ manifests:
   rawYaml:
     - manifests/chat-service/*.yaml
     - manifests/redis/*.yaml
+    - manifests/rabbitmq/*.yaml

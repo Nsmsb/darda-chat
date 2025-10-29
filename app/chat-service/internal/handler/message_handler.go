@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -17,13 +16,11 @@ import (
 
 type MessageHandler struct {
 	messageService service.MessageService
-	logger         *zap.Logger
 }
 
 func NewMessageHandler(messageService service.MessageService) *MessageHandler {
 	return &MessageHandler{
 		messageService: messageService,
-		logger:         logger.GetLogger(),
 	}
 }
 
@@ -34,89 +31,111 @@ var upgrader = websocket.Upgrader{
 }
 
 func (handler *MessageHandler) HandleConnections(c *gin.Context) {
+	// prepare logger from context
+	log := logger.GetFromContext(c)
+
 	// Get id of user and handler error
 	userId := c.Query("id")
 	if userId == "" {
-		fmt.Println("User ID is required")
+		log.Error("User ID is required")
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "User ID is required",
+			"error": "user ID is required",
 		})
 		return
 	}
-	fmt.Printf("User %s connected\n", userId)
+	log.Error("User connected", zap.String("user_id", userId))
 
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		fmt.Println("upgrade error:", err)
+		log.Error("Failed to upgrade to WebSocket", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to upgrade to WebSocket",
+		})
 		return
 	}
 
 	// Ensure cleanup when the function exits
 	defer func() {
 		ws.Close()
-		fmt.Println("client disconnected and removed")
+		log.Info("Client disconnected", zap.String("user_id", userId))
 	}()
 
 	// Reading received messages
 	go func(ctx context.Context) {
 		incomingMessages, err := handler.messageService.SubscribeToMessages(ctx, userId)
-		fmt.Println("subscribed to messages")
+		log.Info("Subscribing to messages", zap.String("user_id", userId))
 		if err != nil {
-			fmt.Println("Error: couldn't subscribe to messages")
+			log.Error("Failed to subscribe to messages", zap.Error(err))
 			return
 		}
+		log.Info("Subscribed to messages", zap.String("user_id", userId))
 
 		// Making sure to unsubscribe when done
 		defer func() {
-			fmt.Println("unsubscribing client from messages")
-			handler.messageService.UnsubscribeFromMessages(userId, incomingMessages)
+			// Unsubscribing from messages
+			log.Info("Unsubscribing from messages", zap.String("user_id", userId))
+			err := handler.messageService.UnsubscribeFromMessages(userId, incomingMessages)
+			if err != nil {
+				log.Error("Failed to unsubscribe from messages", zap.Error(err))
+			}
 		}()
 
 		// Listening for incoming messages and forwarding to WebSocket
+		log.Info("Messages listener started", zap.String("user_id", userId))
 		for {
 			select {
 			case msg, ok := <-incomingMessages:
 				if !ok {
-					fmt.Println("incoming messages channel closed")
+					log.Info("Incoming messages channel closed", zap.String("user_id", userId))
 					return
 				}
 				// Forwarding message to WebSocket
 				ws.WriteMessage(websocket.TextMessage, []byte(msg))
 
 			case <-ctx.Done():
-				fmt.Println("context done, exiting message listener")
+				log.Info("Context done, stopping message listener", zap.String("user_id", userId))
 				return
 			}
 		}
 	}(c.Request.Context())
 
-	// Reading Messages to send
+	// Sending Messages
+	log.Info("Ready to send messages", zap.String("user_id", userId))
+	// Loop to continuously read messages to send from WebSocket
 	for {
 		_, raw, err := ws.ReadMessage()
 		if err != nil {
-			fmt.Println("read error:", err)
+			log.Error("Error reading message", zap.String("user_id", userId), zap.Error(err))
 			break
 		}
 
 		var msg model.Message
 		if err := json.Unmarshal(raw, &msg); err != nil {
-			fmt.Println("unmarshal error:", err)
+			log.Error("Failed to unmarshal message", zap.String("user_id", userId), zap.Error(err))
 			continue
 		}
 		// Adding current time in UTC to avoid server-local timezone differences
 		msg.Timestamp = time.Now().UTC()
 
-		fmt.Println("new msg", msg)
+		// Validation of Message
+		if msg.Destination == "" || msg.Content == "" {
+			log.Error("Invalid message: missing destination or content", zap.String("user_id", userId))
+			// TODO: Send error back to client?
+			continue
+		}
 
 		// Sending Message to Destination
 		// TODO: Validation
 		if strMsg, err := json.Marshal(msg); err == nil {
-			// TODO: handle err
 			err = handler.messageService.SendMessage(c.Request.Context(), msg.Destination, string(strMsg))
 			if err != nil {
-				fmt.Println("Error to send message", err)
+				log.Error("Failed to send message", zap.String("user_id", userId), zap.Error(err))
+				// TODO: Send error back to client?
 				continue
 			}
+		} else {
+			log.Error("Failed to marshal message", zap.String("user_id", userId), zap.Error(err))
+			// TODO: Send error back to client?
 		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/middleware"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
 	"github.com/nsmsb/darda-chat/app/chat-service/pkg/logger"
+	"github.com/nsmsb/darda-chat/app/chat-service/pkg/rabbitmq"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -40,6 +41,21 @@ func main() {
 	})
 
 	// Preparing AMQP Publisher
+
+	// Declaring the queue during initialization
+	ch, err := rabbitmq.Conn().Channel()
+	_, err = ch.QueueDeclare(
+		config.MsgQueue,
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		logger.Fatal("Failed to declare queue", zap.Error(err))
+	}
+	// Creating the publisher
 	publisher := service.NewAMQPPublisher()
 
 	// Preparing Message Service

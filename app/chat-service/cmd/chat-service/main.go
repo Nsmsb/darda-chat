@@ -56,7 +56,10 @@ func main() {
 		logger.Fatal("Failed to declare queue", zap.Error(err))
 	}
 	// Creating the publisher
-	publisher := service.NewAMQPPublisher()
+	publisher, err := service.NewAMQPPublisher()
+	if err != nil {
+		logger.Fatal("Failed to create AMQP publisher", zap.Error(err))
+	}
 
 	// Preparing Message Service
 	messageService := service.NewRedisMessageService(redisClient, publisher)

@@ -86,5 +86,11 @@ func (service *RedisMessageService) Close() error {
 	for _, conn := range service.connections {
 		conn.Close()
 	}
+	// Close the publisher
+	err := service.publisher.Close()
+	if err != nil {
+		return err
+	}
+	// Close the Redis client and return any error
 	return service.client.Close()
 }

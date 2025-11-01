@@ -1,6 +1,11 @@
 package main
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/consumer"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
@@ -18,19 +23,43 @@ func main() {
 	// Connecting to RabbitMQ
 
 	// Initializing message consumer
+	logger.Info("Initializing message consumer")
 	consumer := consumer.NewMessageConsumer(config.MsgQueue, config.ConsumerPoolSize)
 
 	// Declaring the message queue
+	logger.Info("Declaring message queue", zap.String("queue", config.MsgQueue))
 	err := consumer.DeclareQueue(config.MsgQueue)
 	if err != nil {
 		logger.Error("Failed to declare queue", zap.Error(err))
 		return
 	}
 
-	// Starting the message consumer
-	err = consumer.Start()
-	if err != nil {
-		logger.Error("Failed to start message consumer", zap.Error(err))
-	}
-	defer consumer.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Starting the message consumer with context
+	go func() {
+		logger.Info("Starting message consumer", zap.String("queue", config.MsgQueue))
+		err = consumer.Start(ctx)
+		if err != nil {
+			logger.Error("Failed to start message consumer", zap.Error(err))
+			cancel()
+		}
+	}()
+
+	// Graceful shutdown: Listen for interrupt or termination signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for shutdown signal
+	<-quit
+	logger.Info("Received shutdown signal, waiting for workers to finish...")
+
+	// Gracefully stop the consumer by cancelling the context
+	cancel()
+
+	// Wait for all workers and close the consumer
+	consumer.Close()
+
+	logger.Info("Gracefully shutting down the writer service")
 }

@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"sync"
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
@@ -43,7 +44,7 @@ func (c *MessageConsumer) DeclareQueue(queueName string) error {
 	return err
 }
 
-func (c *MessageConsumer) Start() error {
+func (c *MessageConsumer) Start(ctx context.Context) error {
 	log := logger.Get()
 
 	ch, err := c.conn.Channel()
@@ -66,36 +67,44 @@ func (c *MessageConsumer) Start() error {
 		return err
 	}
 
-	for msg := range msgs {
-		c.workers <- struct{}{}
-		c.wg.Add(1)
-
-		go func(m amqp.Delivery) {
-			defer c.wg.Done()
-			defer func() {
-				if r := recover(); r != nil {
-					log.Error("Recovered in message processing", zap.Any("error", r))
-					_ = m.Nack(false, true)
-				}
-				// Realease the worker slot by reading from the channel
-				<-c.workers
-			}()
-
-			// Process the message
-			// TODO: implement message processing logic here
-			log.Info("Processed a message", zap.ByteString("body", m.Body))
-
-			// Acknowledge the message after processing
-			err := m.Ack(false)
-			if err != nil {
-				// TODO: log error
-				// If ack fails, the message will be re-delivered
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("Message consumer is shutting down")
+			return nil
+		case msg, ok := <-msgs:
+			if !ok {
+				log.Info("Message channel closed")
+				return nil
 			}
+			c.workers <- struct{}{}
+			c.wg.Add(1)
 
-		}(msg)
+			go func(m amqp.Delivery) {
+				defer c.wg.Done()
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error("Recovered in message processing", zap.Any("error", r))
+						_ = m.Nack(false, true)
+					}
+					// Realease the worker slot by reading from the channel
+					<-c.workers
+				}()
+
+				// Process the message
+				// TODO: implement message processing logic here
+				log.Info("Processed a message", zap.ByteString("body", m.Body))
+
+				// Acknowledge the message after processing
+				err := m.Ack(false)
+				if err != nil {
+					// TODO: log error
+					// If ack fails, the message will be re-delivered
+				}
+
+			}(msg)
+		}
 	}
-
-	return nil
 }
 
 // Close gracefully shuts down the consumer, waiting for all workers to finish.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/consumer"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -20,7 +21,13 @@ func main() {
 	logger := logger.Get()
 	defer logger.Sync()
 
-	// Connecting to RabbitMQ
+	// Connecting to DB
+	dbClient := db.Client()
+	defer func() {
+		if err := dbClient.Disconnect(context.Background()); err != nil {
+			logger.Error("Error disconnecting MongoDB client", zap.Error(err))
+		}
+	}()
 
 	// Initializing message consumer
 	logger.Info("Initializing message consumer")

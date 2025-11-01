@@ -16,6 +16,10 @@ type Config struct {
 	AMQPPass         string
 	AMQPHost         string
 	MsgQueue         string
+	MongoAddr        string
+	MongoUser        string
+	MongoPass        string
+	MongoTimeout     string
 	ConsumerPoolSize int
 }
 
@@ -43,6 +47,10 @@ func Get() *Config {
 			AMQPPass:         getEnv("AMQP_PASS", ""),
 			AMQPHost:         getEnv("AMQP_HOST", ""),
 			MsgQueue:         getEnv("MSG_QUEUE", "messages"),
+			MongoAddr:        getEnv("MONGO_ADDR", "mongodb://localhost:27017"),
+			MongoTimeout:     getEnv("MONGO_TIMEOUT", "10s"),
+			MongoUser:        getEnv("MONGO_USER", "root"),
+			MongoPass:        getEnv("MONGO_PASS", ""),
 			ConsumerPoolSize: consumerPoolSize,
 		}
 	})

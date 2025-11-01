@@ -18,3 +18,5 @@ manifests:
     - manifests/redis/*.yaml
     - manifests/rabbitmq/*.yaml
     - manifests/message-writer-service/*.yaml
+    - manifests/mongodb/namespace.yaml
+    - manifests/mongodb/*.yaml

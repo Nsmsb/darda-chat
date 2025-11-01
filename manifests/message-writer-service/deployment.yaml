@@ -43,4 +43,23 @@ spec:
             configMapKeyRef:
               name: message-writer-service-config
               key: AMQP_HOST
-
+        - name: MONGO_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: MONGO_ADDR
+        - name: MONGO_USER
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: MONGO_USER
+        - name: MONGO_PASS
+          valueFrom:
+            secretKeyRef:
+              name: message-writer-service-secret
+              key: mongo-password
+        - name: MONGO_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: MONGO_TIMEOUT

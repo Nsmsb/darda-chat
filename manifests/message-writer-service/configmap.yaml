@@ -6,3 +6,6 @@ data:
   AMQP_USER: "devuser"
   AMQP_HOST: "rabbitmq-service.rabbitmq.svc.cluster.local:5672"
   CONSUMER_POOL_SIZE: "10"
+  MONGO_ADDR: "mongo-service.mongodb.svc.cluster.local:27017"
+  MONGO_USER: "root"
+  MONGO_TIMEOUT: "10s"

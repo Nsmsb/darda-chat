@@ -63,3 +63,13 @@ spec:
             configMapKeyRef:
               name: message-writer-service-config
               key: MONGO_TIMEOUT
+        - name: MONGO_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: MONGO_DB_NAME
+        - name: MONGO_COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: MONGO_COLLECTION_NAME

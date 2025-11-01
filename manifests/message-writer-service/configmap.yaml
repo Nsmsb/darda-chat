@@ -9,3 +9,5 @@ data:
   MONGO_ADDR: "mongo-service.mongodb.svc.cluster.local:27017"
   MONGO_USER: "root"
   MONGO_TIMEOUT: "10s"
+  MONGO_DB_NAME: "darda_chat"
+  MONGO_COLLECTION_NAME: "messages"

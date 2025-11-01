@@ -11,16 +11,17 @@ import (
 
 // Config holds the configuration values for the application.
 type Config struct {
-	Port             string
-	AMQPUser         string
-	AMQPPass         string
-	AMQPHost         string
-	MsgQueue         string
-	MongoAddr        string
-	MongoUser        string
-	MongoPass        string
-	MongoTimeout     string
-	ConsumerPoolSize int
+	AMQPUser            string
+	AMQPPass            string
+	AMQPHost            string
+	MsgQueue            string
+	MongoDBName         string
+	MongoCollectionName string
+	MongoAddr           string
+	MongoUser           string
+	MongoPass           string
+	MongoTimeout        string
+	ConsumerPoolSize    int
 }
 
 var (
@@ -42,16 +43,17 @@ func Get() *Config {
 
 	once.Do(func() {
 		instance = &Config{
-			Port:             getEnv("PORT", "8080"),
-			AMQPUser:         getEnv("AMQP_USER", ""),
-			AMQPPass:         getEnv("AMQP_PASS", ""),
-			AMQPHost:         getEnv("AMQP_HOST", ""),
-			MsgQueue:         getEnv("MSG_QUEUE", "messages"),
-			MongoAddr:        getEnv("MONGO_ADDR", "mongodb://localhost:27017"),
-			MongoTimeout:     getEnv("MONGO_TIMEOUT", "10s"),
-			MongoUser:        getEnv("MONGO_USER", "root"),
-			MongoPass:        getEnv("MONGO_PASS", ""),
-			ConsumerPoolSize: consumerPoolSize,
+			AMQPUser:            getEnv("AMQP_USER", ""),
+			AMQPPass:            getEnv("AMQP_PASS", ""),
+			AMQPHost:            getEnv("AMQP_HOST", ""),
+			MsgQueue:            getEnv("MSG_QUEUE", "messages"),
+			MongoDBName:         getEnv("MONGO_DB_NAME", "darda_chat"),
+			MongoCollectionName: getEnv("MONGO_COLLECTION_NAME", "messages"),
+			MongoAddr:           getEnv("MONGO_ADDR", "mongodb://localhost:27017"),
+			MongoTimeout:        getEnv("MONGO_TIMEOUT", "10s"),
+			MongoUser:           getEnv("MONGO_USER", "root"),
+			MongoPass:           getEnv("MONGO_PASS", ""),
+			ConsumerPoolSize:    consumerPoolSize,
 		}
 	})
 	return instance

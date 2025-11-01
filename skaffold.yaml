@@ -8,8 +8,13 @@ build:
       context: app/chat-service
       docker:
         dockerfile: Dockerfile
+    - image: nsmsb/message-writer-service
+      context: app/message-writer-service
+      docker:
+        dockerfile: Dockerfile
 manifests:
   rawYaml:
     - manifests/chat-service/*.yaml
     - manifests/redis/*.yaml
     - manifests/rabbitmq/*.yaml
+    - manifests/message-writer-service/*.yaml

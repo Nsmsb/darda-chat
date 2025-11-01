@@ -9,6 +9,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/consumer"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -30,8 +31,9 @@ func main() {
 	}()
 
 	// Initializing message consumer
+	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName)
 	logger.Info("Initializing message consumer")
-	consumer := consumer.NewMessageConsumer(config.MsgQueue, config.ConsumerPoolSize)
+	consumer := consumer.NewMessageConsumer(config.MsgQueue, config.ConsumerPoolSize, handler)
 
 	// Declaring the message queue
 	logger.Info("Declaring message queue", zap.String("queue", config.MsgQueue))

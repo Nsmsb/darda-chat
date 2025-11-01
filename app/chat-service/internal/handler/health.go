@@ -42,7 +42,7 @@ func (handler *HealthHandler) Readiness(c *gin.Context) {
 	}
 
 	// Checking RabbitMQ connection
-	_, err = rabbitmq.Conn().Channel()
+	ch, err := rabbitmq.Conn().Channel()
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status": "not ready",
@@ -50,6 +50,7 @@ func (handler *HealthHandler) Readiness(c *gin.Context) {
 		})
 		return
 	}
+	defer ch.Close()
 
 	// If Redis and RabbitMQ are reachable, return ready status
 	c.JSON(200, gin.H{

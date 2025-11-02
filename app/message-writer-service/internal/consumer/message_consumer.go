@@ -8,7 +8,6 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/model"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
-	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
@@ -21,15 +20,17 @@ type MessageConsumer struct {
 	wg      sync.WaitGroup
 }
 
-func NewMessageConsumer(queue string, poolSize int, handler handler.Handler) *MessageConsumer {
+// NewMessageConsumer creates a new MessageConsumer instance.
+func NewMessageConsumer(queue string, handler handler.Handler, conn *amqp.Connection, poolSize int) *MessageConsumer {
 	return &MessageConsumer{
 		handler: handler,
 		queue:   queue,
-		conn:    rabbitmq.Conn(),
+		conn:    conn,
 		workers: make(chan struct{}, poolSize),
 	}
 }
 
+// DeclareQueue declares the queue to consume messages from.
 func (c *MessageConsumer) DeclareQueue(queueName string) error {
 	ch, err := c.conn.Channel()
 	if err != nil {
@@ -49,6 +50,8 @@ func (c *MessageConsumer) DeclareQueue(queueName string) error {
 	return err
 }
 
+// Start starts consuming messages from the queue.
+// Messages are processed in parallel based on the pool size.
 func (c *MessageConsumer) Start(ctx context.Context) error {
 	log := logger.Get()
 

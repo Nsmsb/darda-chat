@@ -11,6 +11,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
 	"go.uber.org/zap"
 )
 
@@ -30,10 +31,18 @@ func main() {
 		}
 	}()
 
+	// Preparing rabbitMQ connection
+	conn := rabbitmq.Conn()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logger.Error("Error closing RabbitMQ connection", zap.Error(err))
+		}
+	}()
+
 	// Initializing message consumer
 	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName)
 	logger.Info("Initializing message consumer")
-	consumer := consumer.NewMessageConsumer(config.MsgQueue, config.ConsumerPoolSize, handler)
+	consumer := consumer.NewMessageConsumer(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
 
 	// Declaring the message queue
 	logger.Info("Declaring message queue", zap.String("queue", config.MsgQueue))

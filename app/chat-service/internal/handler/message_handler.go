@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/model"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/service"
+	"github.com/nsmsb/darda-chat/app/chat-service/internal/utils"
 	"github.com/nsmsb/darda-chat/app/chat-service/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -120,15 +122,21 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			log.Error("Failed to unmarshal message", zap.String("user_id", userId), zap.Error(err))
 			continue
 		}
-		// Adding current time in UTC to avoid server-local timezone differences
-		msg.Timestamp = time.Now().UTC()
-
 		// Validation of Message
 		if msg.Destination == "" || msg.Content == "" {
 			log.Error("Invalid message: missing destination or content", zap.String("user_id", userId))
 			// TODO: Send error back to client?
 			continue
 		}
+
+		// Adding current time in UTC to avoid server-local timezone differences
+		msg.Timestamp = time.Now().UTC()
+		// Generate a unique ID if not provided by the client
+		if msg.ID == "" {
+			msg.ID = uuid.New().String()
+		}
+		// Generate conversation ID based on sender and destination
+		msg.ConversationID = utils.GenerateConvId(msg.Sender, msg.Destination)
 
 		// Sending Message to Destination
 		// TODO: Validation

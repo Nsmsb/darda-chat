@@ -120,8 +120,7 @@ func (c *MessageConsumer) Start(ctx context.Context) error {
 				// Acknowledge the message after processing
 				err := m.Ack(false)
 				if err != nil {
-					// TODO: log error
-					// If ack fails, the message will be re-delivered
+					log.Error("Failed to acknowledge message", zap.Error(err))
 				}
 
 			}(msg)

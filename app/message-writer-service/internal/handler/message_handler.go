@@ -12,6 +12,7 @@ type MessageHandler struct {
 	dbCliebnt      *mongo.Client
 }
 
+// NewMessageHandler creates a new MessageHandler instance.
 func NewMessageHandler(dbName, collectionName string) *MessageHandler {
 	return &MessageHandler{
 		dbName:         dbName,
@@ -20,6 +21,7 @@ func NewMessageHandler(dbName, collectionName string) *MessageHandler {
 	}
 }
 
+// Handle handles the message and writes it to the database
 func (h *MessageHandler) Handle(msg model.Message) error {
 	collection := h.dbCliebnt.Database(h.dbName).Collection(h.collectionName)
 	_, err := collection.InsertOne(nil, msg)

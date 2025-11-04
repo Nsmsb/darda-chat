@@ -73,3 +73,18 @@ spec:
             configMapKeyRef:
               name: message-writer-service-config
               key: MONGO_COLLECTION_NAME
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: REDIS_ADDR
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: message-writer-service-config
+              key: REDIS_DB
+        - name: REDIS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: message-writer-service-secret
+              key: redis-password

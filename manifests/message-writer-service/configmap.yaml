@@ -3,11 +3,13 @@ kind: ConfigMap
 metadata:
   name: message-writer-service-config
 data:
+  CONSUMER_POOL_SIZE: "10"
   AMQP_USER: "devuser"
   AMQP_HOST: "rabbitmq-service.rabbitmq.svc.cluster.local:5672"
-  CONSUMER_POOL_SIZE: "10"
   MONGO_ADDR: "mongo-service.mongodb.svc.cluster.local:27017"
   MONGO_USER: "root"
   MONGO_TIMEOUT: "10s"
   MONGO_DB_NAME: "darda_chat"
   MONGO_COLLECTION_NAME: "messages"
+  REDIS_ADDR: "redis:6379"
+  REDIS_DB: "0"

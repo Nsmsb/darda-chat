@@ -21,6 +21,9 @@ type Config struct {
 	MongoUser           string
 	MongoPass           string
 	MongoTimeout        string
+	RedisAddr           string
+	RedisPass           string
+	RedisDB             int
 	ConsumerPoolSize    int
 }
 
@@ -31,7 +34,12 @@ var (
 
 // Get returns the singleton instance of Config, it reads the configs only once.
 func Get() *Config {
-	var consumerPoolSize int = 10 // default value
+	var consumerPoolSize, redisDB int = 10, 0 // default value
+	var err error
+	redisDB, err = strconv.Atoi(getEnv("REDIS_DB", "0"))
+	if err != nil {
+		logger.Get().Error("Invalid REDIS_DB, using default", zap.Int("value", redisDB), zap.Error(err))
+	}
 	consumerPoolSizeEnv := getEnv("CONSUMER_POOL_SIZE", "10")
 	if consumerPoolSizeEnv != "" {
 		if val, err := strconv.Atoi(consumerPoolSizeEnv); err == nil {
@@ -43,6 +51,7 @@ func Get() *Config {
 
 	once.Do(func() {
 		instance = &Config{
+			ConsumerPoolSize:    consumerPoolSize,
 			AMQPUser:            getEnv("AMQP_USER", ""),
 			AMQPPass:            getEnv("AMQP_PASS", ""),
 			AMQPHost:            getEnv("AMQP_HOST", ""),
@@ -53,7 +62,9 @@ func Get() *Config {
 			MongoTimeout:        getEnv("MONGO_TIMEOUT", "10s"),
 			MongoUser:           getEnv("MONGO_USER", "root"),
 			MongoPass:           getEnv("MONGO_PASS", ""),
-			ConsumerPoolSize:    consumerPoolSize,
+			RedisAddr:           getEnv("REDIS_ADDR", "localhost:6379"),
+			RedisPass:           getEnv("REDIS_PASS", ""),
+			RedisDB:             redisDB,
 		}
 	})
 	return instance

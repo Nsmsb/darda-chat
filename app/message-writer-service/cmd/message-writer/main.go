@@ -12,6 +12,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -39,8 +40,25 @@ func main() {
 		}
 	}()
 
+	// Connection to Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     config.RedisAddr,
+		Password: config.RedisPass,
+		DB:       config.RedisDB,
+	})
+	// Test Redis connection
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		logger.Error("Error connecting to Redis", zap.Error(err))
+		os.Exit(1)
+	}
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			logger.Error("Error closing Redis connection", zap.Error(err))
+		}
+	}()
+
 	// Initializing message consumer
-	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName)
+	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName, dbClient, redisClient)
 	logger.Info("Initializing message consumer")
 	consumer := consumer.NewMessageConsumer(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
 

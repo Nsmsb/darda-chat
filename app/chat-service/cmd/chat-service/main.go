@@ -39,6 +39,11 @@ func main() {
 		Password: config.RedisPass,
 		DB:       config.RedisDB,
 	})
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			logger.Error("Error closing Redis connection", zap.Error(err))
+		}
+	}()
 
 	// Preparing AMQP Publisher
 

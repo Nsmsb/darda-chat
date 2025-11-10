@@ -127,6 +127,10 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			log.Error("Unsupported event type", zap.String("user_id", userId), zap.String("event_type", string(event.Type)))
 			continue
 		}
+
+		// Creating Id and Timestamp for MessageEvent
+		event.Timestamp = time.Now().UTC()
+		event.EventID = uuid.New().String()
 		// Handling Message event
 		if event.Type == model.EventTypeMessage {
 			// Unmarshal message content
@@ -143,10 +147,10 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			}
 
 			// Adding current time in UTC to avoid server-local timezone differences
-			msg.Timestamp = time.Now().UTC()
-			// Generate a unique ID if not provided by the client
+			msg.Timestamp = event.Timestamp
+			// Setting ID if not provided by the client
 			if msg.ID == "" {
-				msg.ID = uuid.New().String()
+				msg.ID = event.EventID
 			}
 			// Generate conversation ID based on sender and destination
 			msg.ConversationID = utils.GenerateConvId(msg.Sender, msg.Destination)

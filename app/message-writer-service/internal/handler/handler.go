@@ -6,8 +6,8 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/model"
 )
 
-// Handler defines the interface for handling messages.
+// Handler defines the interface for handling messages events.
 type Handler interface {
-	// Implement the logic to process a message.
-	Handle(ctx context.Context, msg model.Message) error
+	// Implement the logic to process a message event.
+	Handle(ctx context.Context, event model.Event) error
 }

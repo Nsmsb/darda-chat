@@ -28,31 +28,37 @@ func NewMessageHandler(dbName, collectionName string, dbClient *mongo.Client, re
 	}
 }
 
-// Handle handles the message and writes it to the database
-func (h *MessageHandler) Handle(ctx context.Context, msg model.Message) error {
-	// Adding message to DB
-	// TODO: idempotency check: ignore if message with same ID exists
-	collection := h.dbClient.Database(h.dbName).Collection(h.collectionName)
-	_, err := collection.InsertOne(ctx, msg)
-	if err != nil {
-		return err
+// Handle handles the message event and writes it to the database
+func (h *MessageHandler) Handle(ctx context.Context, event model.Event) error {
+	if event.Type == model.EventTypeMessage {
+		// Adding message to DB
+		// TODO: idempotency check: ignore if message with same ID exists
+		var msg model.Message
+		if err := json.Unmarshal(event.Content, &msg); err != nil {
+			return fmt.Errorf("unmarshal event content error: %w", err)
+		}
+		collection := h.dbClient.Database(h.dbName).Collection(h.collectionName)
+		_, err := collection.InsertOne(ctx, msg)
+		if err != nil {
+			return err
+		}
+		// Adding message to cache
+		cachingKey := fmt.Sprintf("chat:history:recent:%s", msg.ConversationID)
+		jsonMsg, err := json.Marshal(msg)
+		if err != nil {
+			return fmt.Errorf("redis marshal error: %w", err)
+		}
+		// Add to cache with expiration and Trim the list to last 50 messages
+		// TODO: make expiration and cache size configurable
+		// TODO make the operation atomic
+		pipe := h.redisClient.Pipeline()
+		pipe.LPush(ctx, cachingKey, jsonMsg)
+		pipe.Expire(ctx, cachingKey, time.Hour)
+		pipe.LTrim(ctx, cachingKey, 0, 49)
+		_, err = pipe.Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("redis pipeline error: %w", err)
+		}
 	}
-	// Adding message to cache
-	cachingKey := fmt.Sprintf("chat:history:recent:%s", msg.ConversationID)
-	jsonMsg, err := json.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("redis marshal error: %w", err)
-	}
-	// Add to cache with expiration and Trim the list to last 50 messages
-	// TODO: make expiration and cache size configurable
-	// TODO make the operation atomic
-	pipe := h.redisClient.Pipeline()
-	pipe.LPush(ctx, cachingKey, jsonMsg)
-	pipe.Expire(ctx, cachingKey, time.Hour)
-	pipe.LTrim(ctx, cachingKey, 0, 49)
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("redis pipeline error: %w", err)
-	}
-	return err
+	return nil
 }

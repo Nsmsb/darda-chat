@@ -107,23 +107,14 @@ func (c *MessageConsumer) Start(ctx context.Context) error {
 					return
 				}
 
-				// creating message object from event object
-				var msg model.Message
-
-				if err := json.Unmarshal(event.Content, &msg); err != nil {
-					log.Error("Invalid message type", zap.Error(err))
-					_ = m.Nack(false, false) // discard the message
-					return
-				}
-
 				// Process the message
-				if err := c.handler.Handle(context.Background(), msg); err != nil {
+				if err := c.handler.Handle(context.Background(), event); err != nil {
 					log.Error("Failed to process message", zap.Error(err))
 					_ = m.Nack(false, true) // requeue the message
 					return
 				}
 
-				log.Info("Processed a message", zap.String("message_id", msg.ID))
+				log.Info("Processed a message", zap.String("message_id", event.EventID))
 
 				// Acknowledge the message after processing
 				err := m.Ack(false)

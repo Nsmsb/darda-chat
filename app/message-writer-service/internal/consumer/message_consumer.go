@@ -123,7 +123,7 @@ func (c *MessageConsumer) Start(ctx context.Context) error {
 					return
 				}
 
-				log.Info("Processed a message", zap.ByteString("body", m.Body))
+				log.Info("Processed a message", zap.String("message_id", msg.ID))
 
 				// Acknowledge the message after processing
 				err := m.Ack(false)

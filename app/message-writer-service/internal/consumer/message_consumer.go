@@ -99,10 +99,18 @@ func (c *MessageConsumer) Start(ctx context.Context) error {
 					<-c.workers
 				}()
 
-				// creating message object from message body
+				// creating event  object from message body
+				var event model.Event
+				if err := json.Unmarshal(m.Body, &event); err != nil {
+					log.Error("Invalid event type", zap.Error(err))
+					_ = m.Nack(false, false) // discard the message
+					return
+				}
+
+				// creating message object from event object
 				var msg model.Message
 
-				if err := json.Unmarshal(m.Body, &msg); err != nil {
+				if err := json.Unmarshal(event.Content, &msg); err != nil {
 					log.Error("Invalid message type", zap.Error(err))
 					_ = m.Nack(false, false) // discard the message
 					return

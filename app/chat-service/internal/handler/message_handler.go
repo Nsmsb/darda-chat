@@ -157,11 +157,7 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 
 			// Sending Message to Destination
 			if strMsg, err := json.Marshal(msg); err == nil {
-				// Wrapping message in event
-				event := model.Event{
-					Type:    model.EventTypeMessage,
-					Content: json.RawMessage(strMsg),
-				}
+				event.Content = json.RawMessage(strMsg)
 				strEvent, err := json.Marshal(event)
 				if err != nil {
 					log.Error("Failed to marshal event", zap.String("user_id", userId), zap.Error(err))

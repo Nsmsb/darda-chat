@@ -2,6 +2,12 @@ package model
 
 import "encoding/json"
 
+const (
+	// Event types
+	EventTypeMessage      = "Message"
+	EventTypeMessageEvent = "MessageEvent"
+)
+
 // Represents a generic event wrapper
 type Event struct {
 	Type    string          `json:"type"`    // "Message", "MessageEvent"

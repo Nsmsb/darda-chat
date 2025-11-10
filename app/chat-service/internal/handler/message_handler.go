@@ -116,40 +116,63 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			break
 		}
 
-		// Unmarshal incoming message
-		var msg model.Message
-		if err := json.Unmarshal(raw, &msg); err != nil {
-			log.Error("Failed to unmarshal message", zap.String("user_id", userId), zap.Error(err))
+		// Unmarshal incoming event
+		var event model.Event
+		if err := json.Unmarshal(raw, &event); err != nil {
+			log.Error("Failed to unmarshal event", zap.String("user_id", userId), zap.Error(err))
 			continue
 		}
-		// Validation of Message
-		if msg.Destination == "" || msg.Content == "" {
-			log.Error("Invalid message: missing destination or content", zap.String("user_id", userId))
-			// TODO: Send error back to client?
+		// Checking event type
+		if event.Type != model.EventTypeMessage && event.Type != model.EventTypeMessageEvent {
+			log.Error("Unsupported event type", zap.String("user_id", userId), zap.String("event_type", string(event.Type)))
 			continue
 		}
-
-		// Adding current time in UTC to avoid server-local timezone differences
-		msg.Timestamp = time.Now().UTC()
-		// Generate a unique ID if not provided by the client
-		if msg.ID == "" {
-			msg.ID = uuid.New().String()
-		}
-		// Generate conversation ID based on sender and destination
-		msg.ConversationID = utils.GenerateConvId(msg.Sender, msg.Destination)
-
-		// Sending Message to Destination
-		// TODO: Validation
-		if strMsg, err := json.Marshal(msg); err == nil {
-			err = handler.messageService.SendMessage(c.Request.Context(), msg.Destination, string(strMsg))
-			if err != nil {
-				log.Error("Failed to send message", zap.String("user_id", userId), zap.Error(err))
+		// Handling Message event
+		if event.Type == model.EventTypeMessage {
+			// Unmarshal message content
+			var msg model.Message
+			if err := json.Unmarshal(event.Content, &msg); err != nil {
+				log.Error("Failed to unmarshal message", zap.String("user_id", userId), zap.Error(err))
+				continue
+			}
+			// Validation of Message
+			if msg.Destination == "" || msg.Content == "" {
+				log.Error("Invalid message: missing destination or content", zap.String("user_id", userId))
 				// TODO: Send error back to client?
 				continue
 			}
-		} else {
-			log.Error("Failed to marshal message", zap.String("user_id", userId), zap.Error(err))
-			// TODO: Send error back to client?
+
+			// Adding current time in UTC to avoid server-local timezone differences
+			msg.Timestamp = time.Now().UTC()
+			// Generate a unique ID if not provided by the client
+			if msg.ID == "" {
+				msg.ID = uuid.New().String()
+			}
+			// Generate conversation ID based on sender and destination
+			msg.ConversationID = utils.GenerateConvId(msg.Sender, msg.Destination)
+
+			// Sending Message to Destination
+			if strMsg, err := json.Marshal(msg); err == nil {
+				// Wrapping message in event
+				event := model.Event{
+					Type:    model.EventTypeMessage,
+					Content: json.RawMessage(strMsg),
+				}
+				strEvent, err := json.Marshal(event)
+				if err != nil {
+					log.Error("Failed to marshal event", zap.String("user_id", userId), zap.Error(err))
+				}
+				// Sending message via message service
+				err = handler.messageService.SendMessage(c.Request.Context(), msg.Destination, string(strEvent))
+				if err != nil {
+					log.Error("Failed to send message", zap.String("user_id", userId), zap.Error(err))
+					// TODO: Send error back to client?
+					continue
+				}
+			} else {
+				log.Error("Failed to marshal message", zap.String("user_id", userId), zap.Error(err))
+				// TODO: Send error back to client?
+			}
 		}
 	}
 }

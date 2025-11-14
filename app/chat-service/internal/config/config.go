@@ -13,6 +13,11 @@ type Config struct {
 	RedisPass          string
 	RedisDB            int
 	SubsChanBufferSize int
+	AMQPUser           string
+	AMQPPass           string
+	AMQPHost           string
+	MsgQueue           string
+	Env                string
 }
 
 var (
@@ -39,6 +44,11 @@ func Get() (*Config, error) {
 			RedisPass:          getEnv("REDIS_PASS", ""),
 			RedisDB:            redisDB,
 			SubsChanBufferSize: subsChanBufferSize,
+			AMQPUser:           getEnv("AMQP_USER", ""),
+			AMQPPass:           getEnv("AMQP_PASS", ""),
+			AMQPHost:           getEnv("AMQP_HOST", ""),
+			MsgQueue:           getEnv("MSG_QUEUE", "messages"),
+			Env:                getEnv("ENV", "development"),
 		}
 	})
 	return instance, err

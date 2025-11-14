@@ -72,9 +72,14 @@
 
       socket.onmessage = function (event) {
         try {
-          const data = JSON.parse(event.data);
-          appendMessage(`📩 ${data.sender}: ${data.content}`);
+          const messageEvent = JSON.parse(event.data);
+          console.log("Received event:", messageEvent);
+          if (messageEvent.type == "Message") {
+            const msg = messageEvent.content;
+            appendMessage(`📩 ${msg.sender}: ${msg.content}`);
+          }
         } catch (e) {
+          console.log("Error parsing message:", e);
           appendMessage("{Received (raw)}: " + event.data);
         }
       };
@@ -99,7 +104,11 @@
         content: content
       };
 
-      socket.send(JSON.stringify(message));
+      const event = {
+        type: "Message",
+        content: message
+      };
+      socket.send(JSON.stringify(event));
       appendMessage(`📤 ${senderId}: ${content}`);
       document.getElementById("contentInput").value = "";
     }

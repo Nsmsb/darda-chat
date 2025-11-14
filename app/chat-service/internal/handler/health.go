@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
+	"github.com/nsmsb/darda-chat/app/chat-service/pkg/rabbitmq"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -39,7 +40,19 @@ func (handler *HealthHandler) Readiness(c *gin.Context) {
 		})
 		return
 	}
-	// If Redis is reachable, return ready status
+
+	// Checking RabbitMQ connection
+	ch, err := rabbitmq.Conn().Channel()
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status": "not ready",
+			"error":  err.Error(),
+		})
+		return
+	}
+	defer ch.Close()
+
+	// If Redis and RabbitMQ are reachable, return ready status
 	c.JSON(200, gin.H{
 		"status": "ready",
 	})

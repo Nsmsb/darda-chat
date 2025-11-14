@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  ports:
+    - name: amqp
+      port: 5672
+    - name: management
+      port: 15672
+  clusterIP: None # headless service for StatefulSet DNS
+  selector:
+    app: rabbitmq
+---
+# Client-facing service (for apps)
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq
+  ports:
+    - port: 5672
+      targetPort: 5672
+      name: amqp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-nodeport
+  namespace: rabbitmq
+spec:
+  type: NodePort
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+      nodePort: 30672
+    - name: management
+      port: 15672
+      targetPort: 15672
+      nodePort: 31672

@@ -33,12 +33,12 @@ No production images are available for now, Skaffold will build and push the ima
 
 - [x] Add multi-server support for WS servers
 - [x] Add Kubernetes deployment
-- [ ] Add Messages DB (MongoDB) and messages persistence (Async write using Message broker)
+- [x] Add Messages DB (MongoDB) and messages persistence (Async write using Message broker)
 - [ ] Add History loading when connected
 - [ ] Add messages caching
 - [ ] Add seen, delivered, sent status
-- [ ] Improve reliability (retries, circuit breaker.. etc)
-- [ ] Add Istio Service Mesh (Gateway)
-- [ ] Add support to enable/disable SSL verification
 - [ ] Develop the front end
+- [ ] Add Istio Service Mesh (Gateway)
 - [ ] Add Helm Charts
+- [ ] Improve reliability (retries, circuit breaker.. etc)
+- [ ] Add support to enable/disable SSL verification

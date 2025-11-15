@@ -5,6 +5,7 @@ go 1.24.4
 require go.uber.org/zap v1.27.0
 
 require (
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect

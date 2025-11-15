@@ -20,7 +20,6 @@ type Config struct {
 	RedisAddr           string
 	RedisPass           string
 	RedisDB             int
-	ConsumerPoolSize    int
 }
 
 var (
@@ -47,7 +46,6 @@ func Get() *Config {
 
 	once.Do(func() {
 		instance = &Config{
-			ConsumerPoolSize:    consumerPoolSize,
 			MongoDBName:         getEnv("MONGO_DB_NAME", "darda_chat"),
 			MongoCollectionName: getEnv("MONGO_COLLECTION_NAME", "messages"),
 			MongoAddr:           getEnv("MONGO_ADDR", "mongodb://localhost:27017"),

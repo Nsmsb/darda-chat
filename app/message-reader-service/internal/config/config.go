@@ -48,10 +48,6 @@ func Get() *Config {
 	once.Do(func() {
 		instance = &Config{
 			ConsumerPoolSize:    consumerPoolSize,
-			AMQPUser:            getEnv("AMQP_USER", ""),
-			AMQPPass:            getEnv("AMQP_PASS", ""),
-			AMQPHost:            getEnv("AMQP_HOST", ""),
-			MsgQueue:            getEnv("MSG_QUEUE", "messages"),
 			MongoDBName:         getEnv("MONGO_DB_NAME", "darda_chat"),
 			MongoCollectionName: getEnv("MONGO_COLLECTION_NAME", "messages"),
 			MongoAddr:           getEnv("MONGO_ADDR", "mongodb://localhost:27017"),

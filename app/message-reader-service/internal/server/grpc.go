@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// NewMessageGRPCServer creates and returns a new gRPC server with registered message service and interceptors.
 func NewMessageGRPCServer() *grpc.Server {
 	logger := logger.Get()
 	defer logger.Sync()

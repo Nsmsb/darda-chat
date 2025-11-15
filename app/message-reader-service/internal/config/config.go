@@ -11,6 +11,7 @@ import (
 
 // Config holds the configuration values for the application.
 type Config struct {
+	Port                string
 	MongoDBName         string
 	MongoCollectionName string
 	MongoAddr           string
@@ -29,23 +30,16 @@ var (
 
 // Get returns the singleton instance of Config, it reads the configs only once.
 func Get() *Config {
-	var consumerPoolSize, redisDB int = 10, 0 // default value
+	var redisDB int = 0 // default value
 	var err error
 	redisDB, err = strconv.Atoi(getEnv("REDIS_DB", "0"))
 	if err != nil {
 		logger.Get().Error("Invalid REDIS_DB, using default", zap.Int("value", redisDB), zap.Error(err))
 	}
-	consumerPoolSizeEnv := getEnv("CONSUMER_POOL_SIZE", "10")
-	if consumerPoolSizeEnv != "" {
-		if val, err := strconv.Atoi(consumerPoolSizeEnv); err == nil {
-			consumerPoolSize = val
-		} else {
-			logger.Get().Error("Invalid CONSUMER_POOL_SIZE, using default", zap.String("value", consumerPoolSizeEnv), zap.Error(err))
-		}
-	}
 
 	once.Do(func() {
 		instance = &Config{
+			Port:                getEnv("PORT", "50051"),
 			MongoDBName:         getEnv("MONGO_DB_NAME", "darda_chat"),
 			MongoCollectionName: getEnv("MONGO_COLLECTION_NAME", "messages"),
 			MongoAddr:           getEnv("MONGO_ADDR", "mongodb://localhost:27017"),

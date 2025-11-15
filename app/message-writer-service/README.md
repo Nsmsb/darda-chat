@@ -1,1 +1,3 @@
-# Message Writer Service
+# Message Reader Service
+
+<!-- TODO: update readme -->

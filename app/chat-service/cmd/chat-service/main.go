@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	pb "github.com/nsmsb/darda-chat/app/chat-service/internal/api/message/gen"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/chat-service/internal/middleware"
@@ -12,6 +15,8 @@ import (
 	"github.com/nsmsb/darda-chat/app/chat-service/pkg/rabbitmq"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -75,12 +80,27 @@ func main() {
 		}
 	}()
 
+	// Preparing MessageReaderService
+	grpcConn, err := grpc.NewClient(config.MessageReaderServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to messageReaderService: %v", err)
+	}
+	defer grpcConn.Close()
+	messageReaderClient := pb.NewMessageServiceClient(grpcConn)
+
+	messageReaderService := service.NewMessageReaderService(messageReaderClient)
+	if err != nil {
+		logger.Fatal("Failed to create Message Reader Service client", zap.Error(err))
+	}
+
 	// Preparing handlers
-	messageHandler := handler.NewMessageHandler(messageService)
+	messageHandler := handler.NewMessageHandler(messageService, messageReaderService)
 
 	// Router with no middlewares
 	r := gin.New()
 	r.Use(gin.Recovery())
+	// CORS Middleware, temporary allow all origins
+	r.Use(cors.Default())
 
 	// Adding Health Handler
 	healthHandler := handler.NewHealthHandler()
@@ -97,6 +117,7 @@ func main() {
 
 	// Adding connections handler
 	api.GET("/ws", messageHandler.HandleConnections)
+	api.GET("/messages/:user", messageHandler.GetMessages)
 
 	// Running Server
 	addr := fmt.Sprintf("0.0.0.0:%s", config.Port)

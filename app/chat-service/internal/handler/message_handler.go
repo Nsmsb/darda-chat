@@ -17,12 +17,14 @@ import (
 )
 
 type MessageHandler struct {
-	messageService service.MessageService
+	messageService       service.MessageService
+	messageReaderService service.MessageReader
 }
 
-func NewMessageHandler(messageService service.MessageService) *MessageHandler {
+func NewMessageHandler(messageService service.MessageService, messageReaderService *service.MessageReaderService) *MessageHandler {
 	return &MessageHandler{
-		messageService: messageService,
+		messageService:       messageService,
+		messageReaderService: messageReaderService,
 	}
 }
 
@@ -32,6 +34,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// HandleConnections handles WebSocket connections for real-time chatting.
 func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 	// prepare logger from context
 	log := logger.GetFromContext(c)
@@ -175,4 +178,29 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 			}
 		}
 	}
+}
+
+// GetMessages handles HTTP requests to retrieve messages for a conversation.
+func (handler *MessageHandler) GetMessages(c *gin.Context) {
+	// prepare logger from context
+	log := logger.GetFromContext(c)
+
+	// Get sender from query, user from path and generate conversation ID
+	sender := c.Query("id")
+	destination := c.Param("user")
+	conversationID := utils.GenerateConvId(sender, destination)
+
+	// Fetch messages using MessageReaderService
+	messages, err := handler.messageReaderService.GetMessages(conversationID)
+	if err != nil {
+		log.Error("Failed to get messages", zap.String("conversation", conversationID), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to get messages",
+		})
+		return
+	}
+	// Return messages as JSON response
+	c.JSON(http.StatusOK, gin.H{
+		"messages": messages,
+	})
 }

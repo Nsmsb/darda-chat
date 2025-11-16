@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package messages.v1;
+
+option go_package = "internal/api/message;messagepb";
+
+import "google/protobuf/timestamp.proto";
+
+message Message {
+  string id = 1;
+  string conversation_id = 2;
+  string sender = 3;
+  string destination = 4;
+  string content = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+message GetMessagesRequest {
+  string conversation_id = 1;
+}
+
+message GetMessagesResponse {
+  repeated Message messages = 1;
+}
+
+service MessageService {
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+}

@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-reader-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-reader-service
+  template:
+    metadata:
+      labels:
+        app: message-reader-service
+    spec:
+      containers:
+      - name: message-reader-service
+        image: nsmsb/message-reader-service:v0.0.1
+        ports:
+        - containerPort: 50051
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: PORT
+        - name: MESSAGE_PAGE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MESSAGE_PAGE_SIZE
+        - name: MONGO_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MONGO_ADDR
+        - name: MONGO_USER
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MONGO_USER
+        - name: MONGO_PASS
+          valueFrom:
+            secretKeyRef:
+              name: message-reader-service-secret
+              key: mongo-password
+        - name: MONGO_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MONGO_TIMEOUT
+        - name: MONGO_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MONGO_DB_NAME
+        - name: MONGO_COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: MONGO_COLLECTION_NAME
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: REDIS_ADDR
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: message-reader-service-config
+              key: REDIS_DB
+        - name: REDIS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: message-reader-service-secret
+              key: redis-password

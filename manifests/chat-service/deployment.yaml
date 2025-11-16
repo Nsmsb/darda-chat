@@ -60,6 +60,11 @@ spec:
             configMapKeyRef:
               name: chat-service-config
               key: AMQP_HOST
+        - name: MESSAGE_READER_SERVICE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: MESSAGE_READER_SERVICE_ADDR
         livenessProbe:
           httpGet:
             path: /healthz

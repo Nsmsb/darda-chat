@@ -8,16 +8,17 @@ import (
 
 // Config holds the configuration values for the application.
 type Config struct {
-	Port               string
-	RedisAddr          string
-	RedisPass          string
-	RedisDB            int
-	SubsChanBufferSize int
-	AMQPUser           string
-	AMQPPass           string
-	AMQPHost           string
-	MsgQueue           string
-	Env                string
+	Port                     string
+	RedisAddr                string
+	RedisPass                string
+	RedisDB                  int
+	SubsChanBufferSize       int
+	AMQPUser                 string
+	AMQPPass                 string
+	AMQPHost                 string
+	MsgQueue                 string
+	MessageReaderServiceAddr string
+	Env                      string
 }
 
 var (
@@ -39,16 +40,17 @@ func Get() (*Config, error) {
 			return
 		}
 		instance = &Config{
-			Port:               getEnv("PORT", "8080"),
-			RedisAddr:          getEnv("REDIS_ADDR", "localhost:6379"),
-			RedisPass:          getEnv("REDIS_PASS", ""),
-			RedisDB:            redisDB,
-			SubsChanBufferSize: subsChanBufferSize,
-			AMQPUser:           getEnv("AMQP_USER", ""),
-			AMQPPass:           getEnv("AMQP_PASS", ""),
-			AMQPHost:           getEnv("AMQP_HOST", ""),
-			MsgQueue:           getEnv("MSG_QUEUE", "messages"),
-			Env:                getEnv("ENV", "development"),
+			Port:                     getEnv("PORT", "8080"),
+			RedisAddr:                getEnv("REDIS_ADDR", "localhost:6379"),
+			RedisPass:                getEnv("REDIS_PASS", ""),
+			RedisDB:                  redisDB,
+			SubsChanBufferSize:       subsChanBufferSize,
+			AMQPUser:                 getEnv("AMQP_USER", ""),
+			AMQPPass:                 getEnv("AMQP_PASS", ""),
+			AMQPHost:                 getEnv("AMQP_HOST", ""),
+			MsgQueue:                 getEnv("MSG_QUEUE", "messages"),
+			MessageReaderServiceAddr: getEnv("MESSAGE_READER_SERVICE_ADDR", "localhost:50051"),
+			Env:                      getEnv("ENV", "development"),
 		}
 	})
 	return instance, err

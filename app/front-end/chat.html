@@ -49,75 +49,114 @@
       class="bg-[var(--messenger-light-gray)] rounded-lg p-4 h-64 overflow-y-auto text-sm font-mono whitespace-pre-wrap"></pre>
   </div>
 
-  <script>
-    let socket = null;
-    let senderId = "";
+<script>
+  let socket = null;
+  let senderId = "";
+  let currentDestination = "";
 
-    document.getElementById("loginButton").addEventListener("click", function () {
-      senderId = document.getElementById("senderInput").value.trim();
-      if (!senderId) {
-        alert("Please enter a sender ID");
-        return;
-      }
+  document.getElementById("loginButton").addEventListener("click", function () {
+    senderId = document.getElementById("senderInput").value.trim();
+    if (!senderId) {
+      alert("Please enter a sender ID");
+      return;
+    }
 
-      socket = new WebSocket(`ws://localhost:8080/api/v1/ws?id=${encodeURIComponent(senderId)}`);
+    socket = new WebSocket(`ws://localhost:8080/api/v1/ws?id=${encodeURIComponent(senderId)}`);
 
-      socket.onopen = function () {
-        appendMessage(`✅ Connected as "${senderId}"`);
-        document.getElementById("chatSection").classList.remove("hidden");
-        document.getElementById("senderInput").disabled = true;
-        document.getElementById("loginButton").disabled = true;
-        document.getElementById("loginButton").classList.add("opacity-50", "cursor-not-allowed");
-      };
+    socket.onopen = function () {
+      appendMessage(`✅ Connected as "${senderId}"`);
+      document.getElementById("chatSection").classList.remove("hidden");
 
-      socket.onmessage = function (event) {
-        try {
-          const messageEvent = JSON.parse(event.data);
-          console.log("Received event:", messageEvent);
-          if (messageEvent.type == "Message") {
-            const msg = messageEvent.content;
-            appendMessage(`📩 ${msg.sender}: ${msg.content}`);
-          }
-        } catch (e) {
-          console.log("Error parsing message:", e);
-          appendMessage("{Received (raw)}: " + event.data);
+      document.getElementById("senderInput").disabled = true;
+      document.getElementById("loginButton").disabled = true;
+      document.getElementById("loginButton").classList.add("opacity-50", "cursor-not-allowed");
+
+      // When destination changes, load messages for that destination
+      document.getElementById("destinationInput").addEventListener("change", function () {
+        currentDestination = this.value.trim();
+        if (currentDestination) {
+          loadMessages(currentDestination);
         }
-      };
+      });
+    };
 
-      socket.onclose = function () {
-        appendMessage("❌ Disconnected from WebSocket server");
-      };
-    });
+    socket.onmessage = function (event) {
+      try {
+        const messageEvent = JSON.parse(event.data);
 
-    function sendMessage() {
-      const destination = document.getElementById("destinationInput").value.trim();
-      const content = document.getElementById("contentInput").value.trim();
+        if (messageEvent.type === "Message") {
+          const msg = messageEvent.content;
+          appendMessage(`📩 ${msg.sender}: ${msg.content}`);
+        }
+      } catch (e) {
+        appendMessage("{Received (raw)}: " + event.data);
+      }
+    };
 
-      if (!destination || !content) {
-        alert("Please fill in all fields");
+    socket.onclose = function () {
+      appendMessage("❌ Disconnected from WebSocket server");
+    };
+  });
+
+  // Load past messages
+  async function loadMessages(destination) {
+    appendMessage(`🕓 Loading messages for "${destination}"...`);
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/messages/${encodeURIComponent(destination)}?id=${encodeURIComponent(senderId)}`);
+      if (!response.ok) {
+        appendMessage(`⚠ Failed to load messages (status ${response.status})`);
         return;
       }
 
-      const message = {
-        sender: senderId,
-        destination: destination,
-        content: content
-      };
+      const res = await response.json();
+      console.log("Loaded messages:", res);
+      const messages = res.messages;
 
-      const event = {
-        type: "Message",
-        content: message
-      };
-      socket.send(JSON.stringify(event));
-      appendMessage(`📤 ${senderId}: ${content}`);
-      document.getElementById("contentInput").value = "";
+      appendMessage(`📚 Loaded ${messages.length} messages:`);
+
+      messages.forEach(msg => {
+        appendMessage(`${msg.sender === senderId ? "📤" : "📩"} ${msg.sender}: ${msg.content}`);
+      });
+
+    } catch (err) {
+      appendMessage("⚠ Error loading messages: " + err);
+    }
+  }
+
+  function sendMessage() {
+    const destination = document.getElementById("destinationInput").value.trim();
+    const content = document.getElementById("contentInput").value.trim();
+
+    if (!destination || !content) {
+      alert("Please fill in all fields");
+      return;
     }
 
-    function appendMessage(text) {
-      const messagesEl = document.getElementById("messages");
-      messagesEl.textContent += text + "\n";
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-  </script>
+    currentDestination = destination;
+
+    const message = {
+      sender: senderId,
+      destination: destination,
+      content: content
+    };
+
+    const event = {
+      type: "Message",
+      content: message
+    };
+
+    socket.send(JSON.stringify(event));
+    appendMessage(`📤 ${senderId}: ${content}`);
+
+    document.getElementById("contentInput").value = "";
+  }
+
+  function appendMessage(text) {
+    const messagesEl = document.getElementById("messages");
+    messagesEl.textContent += text + "\n";
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+</script>
+
 </body>
 </html>

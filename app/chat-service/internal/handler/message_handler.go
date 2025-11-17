@@ -48,7 +48,7 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 		})
 		return
 	}
-	log.Error("User connected", zap.String("user_id", userId))
+	log.Info("User connected", zap.String("user_id", userId))
 
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {

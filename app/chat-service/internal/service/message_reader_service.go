@@ -32,12 +32,12 @@ func (s *MessageReaderService) GetMessages(conversationID string) ([]*model.Mess
 	messages := []*model.Message{}
 	for _, msg := range resp.Messages {
 		messages = append(messages, &model.Message{
-			ID:             msg.Id,
-			ConversationID: msg.ConversationId,
-			Sender:         msg.Sender,
-			Destination:    msg.Destination,
-			Content:        msg.Content,
-			Timestamp:      msg.Timestamp.AsTime().UTC(),
+			ID:             msg.GetId(),
+			ConversationID: msg.GetConversationId(),
+			Sender:         msg.GetSender(),
+			Destination:    msg.GetDestination(),
+			Content:        msg.GetContent(),
+			Timestamp:      msg.GetTimestamp().AsTime().UTC(),
 		})
 	}
 

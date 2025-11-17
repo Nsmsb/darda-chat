@@ -70,12 +70,12 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		msg := &pb.Message{}
 
 		// id
-		if id, ok := d["id"].(primitive.ObjectID); ok {
-			msg.Id = id.Hex()
+		if id, ok := d["id"].(string); ok {
+			msg.Id = id
 		}
 
 		// conversationId
-		if conv, ok := d["conversationId"].(string); ok {
+		if conv, ok := d["conversationid"].(string); ok {
 			msg.ConversationId = conv
 		}
 

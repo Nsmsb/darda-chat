@@ -14,6 +14,8 @@ import (
 )
 
 func main() {
+	// TODO: Add graceful shutdown for MongoDB and Redis connections
+	// TODO: Add readiness and liveness probes
 	// Get configuration
 	config := config.Get()
 

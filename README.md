@@ -34,8 +34,8 @@ No production images are available for now, Skaffold will build and push the ima
 - [x] Add multi-server support for WS servers
 - [x] Add Kubernetes deployment
 - [x] Add Messages DB (MongoDB) and messages persistence (Async write using Message broker)
-- [ ] Add History loading when connected
-- [ ] Add messages caching
+- [x] Add History loading when connected
+- [ ] Add messages caching, logic to handle lost messages when a user connect after message is sent to message queue.
 - [ ] Add seen, delivered, sent status
 - [ ] Develop the front end
 - [ ] Add Istio Service Mesh (Gateway)

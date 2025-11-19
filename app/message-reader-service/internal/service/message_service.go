@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"slices"
+	"time"
 
 	pb "github.com/nsmsb/darda-chat/app/message-reader-service/internal/api/message/gen"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
@@ -31,11 +32,13 @@ func NewMessageService() *MessageService {
 func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessagesRequest) (*pb.GetMessagesResponse, error) {
 	config := config.Get()
 
-	// Getting Conversation ID from request
+	// Getting Conversation ID an cursor parameters from request
 	conversationID := request.GetConversationId()
 	if conversationID == "" {
 		return nil, status.Error(codes.InvalidArgument, "conversation_id is required")
 	}
+	before := request.GetBefore()
+	after := request.GetAfter()
 
 	// Getting collection
 	col := s.client.Database(config.MongoDBName).Collection(config.MongoCollectionName)
@@ -45,11 +48,37 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		"conversationid": conversationID,
 	}
 
+	// Adding cursor conditions
+	if before != "" {
+		t, err := time.Parse(time.RFC3339, before)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
+		}
+		beforeTime := primitive.NewDateTimeFromTime(t)
+		filter["timestamp"] = bson.M{"$lt": beforeTime}
+	}
+
+	//
+	if after != "" {
+		t, err := time.Parse(time.RFC3339, before)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
+		}
+		afterTime := primitive.NewDateTimeFromTime(t)
+		if existing, ok := filter["timestamp"].(bson.M); ok {
+			existing["$gt"] = afterTime
+			filter["timestamp"] = existing
+		} else {
+			filter["timestamp"] = bson.M{"$gt": afterTime}
+		}
+	}
+
 	// Setting find options: newest first, limit N
 	opts := options.Find().
 		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
 		SetLimit(int64(config.MessagePageSize))
 
+	// Executing find query
 	cursor, err := col.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mongo find error: %v", err)

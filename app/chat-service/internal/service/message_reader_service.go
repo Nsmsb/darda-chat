@@ -18,13 +18,15 @@ func NewMessageReaderService(client pb.MessageServiceClient) *MessageReaderServi
 }
 
 // GetMessages retrieves messages for a given conversation ID using the message-reader-service.
-func (s *MessageReaderService) GetMessages(conversationID string) ([]*model.Message, error) {
+func (s *MessageReaderService) GetMessages(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error) {
 	// Prepare request
 	req := &pb.GetMessagesRequest{
 		ConversationId: conversationID,
+		Before:         before,
+		After:          after,
 	}
 	// Call gRPC method
-	resp, err := s.client.GetMessages(context.Background(), req)
+	resp, err := s.client.GetMessages(ctx, req)
 	if err != nil {
 		return nil, err
 	}

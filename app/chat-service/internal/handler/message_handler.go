@@ -182,16 +182,24 @@ func (handler *MessageHandler) HandleConnections(c *gin.Context) {
 
 // GetMessages handles HTTP requests to retrieve messages for a conversation.
 func (handler *MessageHandler) GetMessages(c *gin.Context) {
-	// prepare logger from context
+	// Prepare logger from context
 	log := logger.GetFromContext(c)
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
 
 	// Get sender from query, user from path and generate conversation ID
 	sender := c.Query("id")
 	destination := c.Param("user")
 	conversationID := utils.GenerateConvId(sender, destination)
 
+	// Getting cursor parameters from request query
+	before := c.Query("before")
+	after := c.Query("after")
+
 	// Fetch messages using MessageReaderService
-	messages, err := handler.messageReaderService.GetMessages(conversationID)
+	messages, err := handler.messageReaderService.GetMessages(ctx, conversationID, before, after)
 	if err != nil {
 		log.Error("Failed to get messages", zap.String("conversation", conversationID), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -199,8 +207,18 @@ func (handler *MessageHandler) GetMessages(c *gin.Context) {
 		})
 		return
 	}
+
+	// Determine older and newer cursors
+	var olderCursor, newerCursor string
+	if len(messages) > 0 {
+		olderCursor = messages[len(messages)-1].Timestamp.Format(time.RFC3339)
+		newerCursor = messages[0].Timestamp.Format(time.RFC3339)
+	}
+
 	// Return messages as JSON response
 	c.JSON(http.StatusOK, gin.H{
 		"messages": messages,
+		"before":   olderCursor,
+		"after":    newerCursor,
 	})
 }

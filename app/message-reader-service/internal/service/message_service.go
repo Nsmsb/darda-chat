@@ -40,6 +40,11 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 	before := request.GetBefore()
 	after := request.GetAfter()
 
+	// Handling error when both after and before cursors are set
+	if before != "" && after != "" {
+		return nil, status.Error(codes.InvalidArgument, "only one of 'before' or 'after' can be set")
+	}
+
 	// Getting collection
 	col := s.client.Database(config.MongoDBName).Collection(config.MongoCollectionName)
 
@@ -58,22 +63,17 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		filter["timestamp"] = bson.M{"$lt": beforeTime}
 	}
 
-	//
+	// If after is set, add $gt condition
 	if after != "" {
-		t, err := time.Parse(time.RFC3339, before)
+		t, err := time.Parse(time.RFC3339, after)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
 		}
 		afterTime := primitive.NewDateTimeFromTime(t)
-		if existing, ok := filter["timestamp"].(bson.M); ok {
-			existing["$gt"] = afterTime
-			filter["timestamp"] = existing
-		} else {
-			filter["timestamp"] = bson.M{"$gt": afterTime}
-		}
+		filter["timestamp"] = bson.M{"$gt": afterTime}
 	}
 
-	// Setting find options: newest first, limit N
+	// Setting find options: newest first, limit set to MessagePageSize
 	opts := options.Find().
 		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
 		SetLimit(int64(config.MessagePageSize))

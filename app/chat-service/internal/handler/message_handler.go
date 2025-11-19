@@ -211,8 +211,8 @@ func (handler *MessageHandler) GetMessages(c *gin.Context) {
 	// Determine older and newer cursors
 	var olderCursor, newerCursor string
 	if len(messages) > 0 {
-		olderCursor = messages[len(messages)-1].Timestamp.Format(time.RFC3339)
-		newerCursor = messages[0].Timestamp.Format(time.RFC3339)
+		newerCursor = messages[len(messages)-1].Timestamp.Format(time.RFC3339Nano)
+		olderCursor = messages[0].Timestamp.Format(time.RFC3339Nano)
 	}
 
 	// Return messages as JSON response

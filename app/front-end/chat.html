@@ -54,6 +54,9 @@
   let senderId = "";
   let currentDestination = "";
 
+  let beforeCursor = null;     // <—— store older-messages cursor
+  let loadingOlder = false;    // <—— prevents double loading
+
   document.getElementById("loginButton").addEventListener("click", function () {
     senderId = document.getElementById("senderInput").value.trim();
     if (!senderId) {
@@ -74,10 +77,14 @@
       // When destination changes, load messages for that destination
       document.getElementById("destinationInput").addEventListener("change", function () {
         currentDestination = this.value.trim();
+        beforeCursor = null; // reset cursor for destination change
+        clearMessages();
         if (currentDestination) {
           loadMessages(currentDestination);
         }
       });
+
+      setupInfiniteScroll();
     };
 
     socket.onmessage = function (event) {
@@ -98,11 +105,25 @@
     };
   });
 
-  // Load past messages
+  // Infinite scroll handler
+  function setupInfiniteScroll() {
+    const messagesEl = document.getElementById("messages");
+
+    messagesEl.addEventListener("scroll", async () => {
+      if (messagesEl.scrollTop === 0 && !loadingOlder && beforeCursor) {
+        await loadOlderMessages();
+      }
+    });
+  }
+
+  // Load initial messages
   async function loadMessages(destination) {
     appendMessage(`🕓 Loading messages for "${destination}"...`);
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/messages/${encodeURIComponent(destination)}?id=${encodeURIComponent(senderId)}`);
+      const response = await fetch(
+        `http://localhost:8080/api/v1/messages/${encodeURIComponent(destination)}?id=${encodeURIComponent(senderId)}`
+      );
+
       if (!response.ok) {
         appendMessage(`⚠ Failed to load messages (status ${response.status})`);
         return;
@@ -110,17 +131,82 @@
 
       const res = await response.json();
       console.log("Loaded messages:", res);
-      const messages = res.messages;
 
-      appendMessage(`📚 Loaded ${messages.length} messages:`);
+      // Save cursor for older messages
+      beforeCursor = res.before || null;
 
-      messages.forEach(msg => {
+      appendMessage(`📚 Loaded ${res.messages.length} messages:`);
+
+      res.messages.forEach(msg => {
         appendMessage(`${msg.sender === senderId ? "📤" : "📩"} ${msg.sender}: ${msg.content}`);
       });
 
     } catch (err) {
       appendMessage("⚠ Error loading messages: " + err);
     }
+  }
+
+  // Load older messages when scrolling up
+  async function loadOlderMessages() {
+    if (!currentDestination || !beforeCursor) return;
+
+    loadingOlder = true;
+
+    const messagesEl = document.getElementById("messages");
+
+    const previousScrollHeight = messagesEl.scrollHeight;
+
+    try {
+      const url = `http://localhost:8080/api/v1/messages/${encodeURIComponent(currentDestination)
+        }?id=${encodeURIComponent(senderId)}&before=${encodeURIComponent(beforeCursor)}`;
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        loadingOlder = false;
+        return;
+      }
+
+      const data = await res.json();
+
+      // Update the cursor
+      beforeCursor = data.before || null;
+
+      // Prepend messages (oldest first)
+      prependMessages(data.messages);
+
+      // Maintain scroll position during prepend
+      const newScrollHeight = messagesEl.scrollHeight;
+      messagesEl.scrollTop = newScrollHeight - previousScrollHeight;
+
+    } catch (err) {
+      console.error("Error loading older messages:", err);
+    }
+
+    loadingOlder = false;
+  }
+
+  // Prepend older messages
+  function prependMessages(messages) {
+    const messagesEl = document.getElementById("messages");
+
+    // Build text block
+    let block = "";
+    messages.forEach(msg => {
+      block += `${msg.sender === senderId ? "📤" : "📩"} ${msg.sender}: ${msg.content}\n`;
+    });
+
+    messagesEl.textContent = block + messagesEl.textContent;
+  }
+
+  function clearMessages() {
+    document.getElementById("messages").textContent = "";
+  }
+
+  function appendMessage(text) {
+    const messagesEl = document.getElementById("messages");
+    messagesEl.textContent += text + "\n";
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   function sendMessage() {
@@ -149,12 +235,6 @@
     appendMessage(`📤 ${senderId}: ${content}`);
 
     document.getElementById("contentInput").value = "";
-  }
-
-  function appendMessage(text) {
-    const messagesEl = document.getElementById("messages");
-    messagesEl.textContent += text + "\n";
-    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 </script>
 

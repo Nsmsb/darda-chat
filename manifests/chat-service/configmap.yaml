@@ -9,3 +9,4 @@ data:
   SUBS_CHAN_BUFFER_SIZE: "30"
   AMQP_USER: "devuser"
   AMQP_HOST: "rabbitmq-service.rabbitmq.svc.cluster.local:5672"
+  MESSAGE_READER_SERVICE_ADDR: "message-reader-service:50051"

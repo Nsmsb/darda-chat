@@ -12,11 +12,16 @@ build:
       context: app/message-writer-service
       docker:
         dockerfile: Dockerfile
+    - image: nsmsb/message-reader-service
+      context: app/message-reader-service
+      docker:
+        dockerfile: Dockerfile
 manifests:
   rawYaml:
     - manifests/chat-service/*.yaml
     - manifests/redis/*.yaml
     - manifests/rabbitmq/*.yaml
     - manifests/message-writer-service/*.yaml
+    - manifests/message-reader-service/*.yaml
     - manifests/mongodb/namespace.yaml
     - manifests/mongodb/*.yaml

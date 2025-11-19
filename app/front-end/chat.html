@@ -49,75 +49,194 @@
       class="bg-[var(--messenger-light-gray)] rounded-lg p-4 h-64 overflow-y-auto text-sm font-mono whitespace-pre-wrap"></pre>
   </div>
 
-  <script>
-    let socket = null;
-    let senderId = "";
+<script>
+  let socket = null;
+  let senderId = "";
+  let currentDestination = "";
 
-    document.getElementById("loginButton").addEventListener("click", function () {
-      senderId = document.getElementById("senderInput").value.trim();
-      if (!senderId) {
-        alert("Please enter a sender ID");
+  let beforeCursor = null;     // <—— store older-messages cursor
+  let loadingOlder = false;    // <—— prevents double loading
+
+  document.getElementById("loginButton").addEventListener("click", function () {
+    senderId = document.getElementById("senderInput").value.trim();
+    if (!senderId) {
+      alert("Please enter a sender ID");
+      return;
+    }
+
+    socket = new WebSocket(`ws://localhost:8080/api/v1/ws?id=${encodeURIComponent(senderId)}`);
+
+    socket.onopen = function () {
+      appendMessage(`✅ Connected as "${senderId}"`);
+      document.getElementById("chatSection").classList.remove("hidden");
+
+      document.getElementById("senderInput").disabled = true;
+      document.getElementById("loginButton").disabled = true;
+      document.getElementById("loginButton").classList.add("opacity-50", "cursor-not-allowed");
+
+      // When destination changes, load messages for that destination
+      document.getElementById("destinationInput").addEventListener("change", function () {
+        currentDestination = this.value.trim();
+        beforeCursor = null; // reset cursor for destination change
+        clearMessages();
+        if (currentDestination) {
+          loadMessages(currentDestination);
+        }
+      });
+
+      setupInfiniteScroll();
+    };
+
+    socket.onmessage = function (event) {
+      try {
+        const messageEvent = JSON.parse(event.data);
+
+        if (messageEvent.type === "Message") {
+          const msg = messageEvent.content;
+          appendMessage(`📩 ${msg.sender}: ${msg.content}`);
+        }
+      } catch (e) {
+        appendMessage("{Received (raw)}: " + event.data);
+      }
+    };
+
+    socket.onclose = function () {
+      appendMessage("❌ Disconnected from WebSocket server");
+    };
+  });
+
+  // Infinite scroll handler
+  function setupInfiniteScroll() {
+    const messagesEl = document.getElementById("messages");
+
+    messagesEl.addEventListener("scroll", async () => {
+      if (messagesEl.scrollTop === 0 && !loadingOlder && beforeCursor) {
+        await loadOlderMessages();
+      }
+    });
+  }
+
+  // Load initial messages
+  async function loadMessages(destination) {
+    appendMessage(`🕓 Loading messages for "${destination}"...`);
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/v1/messages/${encodeURIComponent(destination)}?id=${encodeURIComponent(senderId)}`
+      );
+
+      if (!response.ok) {
+        appendMessage(`⚠ Failed to load messages (status ${response.status})`);
         return;
       }
 
-      socket = new WebSocket(`ws://localhost:8080/api/v1/ws?id=${encodeURIComponent(senderId)}`);
+      const res = await response.json();
+      console.log("Loaded messages:", res);
 
-      socket.onopen = function () {
-        appendMessage(`✅ Connected as "${senderId}"`);
-        document.getElementById("chatSection").classList.remove("hidden");
-        document.getElementById("senderInput").disabled = true;
-        document.getElementById("loginButton").disabled = true;
-        document.getElementById("loginButton").classList.add("opacity-50", "cursor-not-allowed");
-      };
+      // Save cursor for older messages
+      beforeCursor = res.before || null;
 
-      socket.onmessage = function (event) {
-        try {
-          const messageEvent = JSON.parse(event.data);
-          console.log("Received event:", messageEvent);
-          if (messageEvent.type == "Message") {
-            const msg = messageEvent.content;
-            appendMessage(`📩 ${msg.sender}: ${msg.content}`);
-          }
-        } catch (e) {
-          console.log("Error parsing message:", e);
-          appendMessage("{Received (raw)}: " + event.data);
-        }
-      };
+      appendMessage(`📚 Loaded ${res.messages.length} messages:`);
 
-      socket.onclose = function () {
-        appendMessage("❌ Disconnected from WebSocket server");
-      };
+      res.messages.forEach(msg => {
+        appendMessage(`${msg.sender === senderId ? "📤" : "📩"} ${msg.sender}: ${msg.content}`);
+      });
+
+    } catch (err) {
+      appendMessage("⚠ Error loading messages: " + err);
+    }
+  }
+
+  // Load older messages when scrolling up
+  async function loadOlderMessages() {
+    if (!currentDestination || !beforeCursor) return;
+
+    loadingOlder = true;
+
+    const messagesEl = document.getElementById("messages");
+
+    const previousScrollHeight = messagesEl.scrollHeight;
+
+    try {
+      const url = `http://localhost:8080/api/v1/messages/${encodeURIComponent(currentDestination)
+        }?id=${encodeURIComponent(senderId)}&before=${encodeURIComponent(beforeCursor)}`;
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        loadingOlder = false;
+        return;
+      }
+
+      const data = await res.json();
+
+      // Update the cursor
+      beforeCursor = data.before || null;
+
+      // Prepend messages (oldest first)
+      prependMessages(data.messages);
+
+      // Maintain scroll position during prepend
+      const newScrollHeight = messagesEl.scrollHeight;
+      messagesEl.scrollTop = newScrollHeight - previousScrollHeight;
+
+    } catch (err) {
+      console.error("Error loading older messages:", err);
+    }
+
+    loadingOlder = false;
+  }
+
+  // Prepend older messages
+  function prependMessages(messages) {
+    const messagesEl = document.getElementById("messages");
+
+    // Build text block
+    let block = "";
+    messages.forEach(msg => {
+      block += `${msg.sender === senderId ? "📤" : "📩"} ${msg.sender}: ${msg.content}\n`;
     });
 
-    function sendMessage() {
-      const destination = document.getElementById("destinationInput").value.trim();
-      const content = document.getElementById("contentInput").value.trim();
+    messagesEl.textContent = block + messagesEl.textContent;
+  }
 
-      if (!destination || !content) {
-        alert("Please fill in all fields");
-        return;
-      }
+  function clearMessages() {
+    document.getElementById("messages").textContent = "";
+  }
 
-      const message = {
-        sender: senderId,
-        destination: destination,
-        content: content
-      };
+  function appendMessage(text) {
+    const messagesEl = document.getElementById("messages");
+    messagesEl.textContent += text + "\n";
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
 
-      const event = {
-        type: "Message",
-        content: message
-      };
-      socket.send(JSON.stringify(event));
-      appendMessage(`📤 ${senderId}: ${content}`);
-      document.getElementById("contentInput").value = "";
+  function sendMessage() {
+    const destination = document.getElementById("destinationInput").value.trim();
+    const content = document.getElementById("contentInput").value.trim();
+
+    if (!destination || !content) {
+      alert("Please fill in all fields");
+      return;
     }
 
-    function appendMessage(text) {
-      const messagesEl = document.getElementById("messages");
-      messagesEl.textContent += text + "\n";
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-  </script>
+    currentDestination = destination;
+
+    const message = {
+      sender: senderId,
+      destination: destination,
+      content: content
+    };
+
+    const event = {
+      type: "Message",
+      content: message
+    };
+
+    socket.send(JSON.stringify(event));
+    appendMessage(`📤 ${senderId}: ${content}`);
+
+    document.getElementById("contentInput").value = "";
+  }
+</script>
+
 </body>
 </html>

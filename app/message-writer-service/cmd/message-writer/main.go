@@ -17,6 +17,8 @@ import (
 )
 
 func main() {
+	// TODO: Add readiness and liveness probes
+
 	// Loading configuration
 	config := config.Get()
 

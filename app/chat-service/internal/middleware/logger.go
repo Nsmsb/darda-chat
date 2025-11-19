@@ -18,7 +18,7 @@ func ZapLogger(logger *zap.Logger) gin.HandlerFunc {
 
 		// Create a logger with request-specific fields
 		reqLogger := logger.With(
-			zap.String("method", c.Request.Method),
+			zap.String("method", method),
 			zap.String("path", path),
 			zap.String("request_id", requestId),
 			zap.String("client_ip", clientIP),
@@ -33,11 +33,8 @@ func ZapLogger(logger *zap.Logger) gin.HandlerFunc {
 		latency := time.Since(start)
 		statusCode := c.Writer.Status()
 
-		logger.Info("incoming request",
+		reqLogger.Info("incoming request",
 			zap.Int("status", statusCode),
-			zap.String("method", method),
-			zap.String("path", path),
-			zap.String("client_ip", clientIP),
 			zap.Duration("latency", latency),
 		)
 	}

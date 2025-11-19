@@ -96,8 +96,14 @@ func main() {
 	// Router with no middlewares
 	r := gin.New()
 	r.Use(gin.Recovery())
-	// CORS Middleware, temporary allow all origins
-	r.Use(cors.Default())
+
+	// Setting up CORS
+	if config.Env == "production" {
+		r.Use(cors.New(config.CORSConfig))
+	} else {
+		// allow all origins
+		r.Use(cors.Default())
+	}
 
 	// Adding Health Handler
 	healthHandler := handler.NewHealthHandler()

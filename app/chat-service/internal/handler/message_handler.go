@@ -21,7 +21,7 @@ type MessageHandler struct {
 	messageReaderService service.MessageReader
 }
 
-func NewMessageHandler(messageService service.MessageService, messageReaderService *service.MessageReaderService) *MessageHandler {
+func NewMessageHandler(messageService service.MessageService, messageReaderService service.MessageReader) *MessageHandler {
 	return &MessageHandler{
 		messageService:       messageService,
 		messageReaderService: messageReaderService,

@@ -89,9 +89,6 @@ func main() {
 	messageReaderClient := pb.NewMessageServiceClient(grpcConn)
 
 	messageReaderService := service.NewMessageReaderService(messageReaderClient)
-	if err != nil {
-		logger.Fatal("Failed to create Message Reader Service client", zap.Error(err))
-	}
 
 	// Preparing handlers
 	messageHandler := handler.NewMessageHandler(messageService, messageReaderService)

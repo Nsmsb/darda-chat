@@ -17,6 +17,8 @@ message Message {
 
 message GetMessagesRequest {
   string conversation_id = 1;
+  string before = 2;
+  string after = 3;
 }
 
 message GetMessagesResponse {

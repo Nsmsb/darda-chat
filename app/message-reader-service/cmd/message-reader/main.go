@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/server"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -22,6 +24,24 @@ func main() {
 	// Getting logger
 	logger := logger.Get()
 	defer logger.Sync()
+
+	// Connection to Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     config.RedisAddr,
+		Password: config.RedisPass,
+		DB:       config.RedisDB,
+	})
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			logger.Error("Error closing Redis connection", zap.Error(err))
+		}
+	}()
+	// Test Redis connection
+	// TODO: add readiness probe
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		logger.Error("Error connecting to Redis", zap.Error(err))
+		os.Exit(1)
+	}
 
 	// Create listener
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", config.Port))

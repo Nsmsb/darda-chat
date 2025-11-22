@@ -2,16 +2,9 @@ package service
 
 import (
 	"context"
-	"slices"
-	"time"
 
 	pb "github.com/nsmsb/darda-chat/app/message-reader-service/internal/api/message/gen"
-	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
-	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/db"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/repository"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,19 +12,17 @@ import (
 
 type MessageService struct {
 	pb.UnimplementedMessageServiceServer
-	client *mongo.Client
+	conversationRepo repository.ConversationRepository
 }
 
-func NewMessageService() *MessageService {
+func NewMessageService(conversationRepo repository.ConversationRepository) *MessageService {
 	return &MessageService{
-		client: db.Client(),
+		conversationRepo: conversationRepo,
 	}
 }
 
 // GetMessages retrieves messages for a given conversation ID.
 func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessagesRequest) (*pb.GetMessagesResponse, error) {
-	config := config.Get()
-
 	// Getting Conversation ID an cursor parameters from request
 	conversationID := request.GetConversationId()
 	if conversationID == "" {
@@ -45,96 +36,40 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		return nil, status.Error(codes.InvalidArgument, "only one of 'before' or 'after' can be set")
 	}
 
-	// Getting collection
-	col := s.client.Database(config.MongoDBName).Collection(config.MongoCollectionName)
-
-	// MongoDB filter (by conversationId)
-	filter := bson.M{
-		"conversationid": conversationID,
-	}
-
-	// Adding cursor conditions
-	if before != "" {
-		t, err := time.Parse(time.RFC3339, before)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
-		}
-		beforeTime := primitive.NewDateTimeFromTime(t)
-		filter["timestamp"] = bson.M{"$lt": beforeTime}
-	}
-
-	// If after is set, add $gt condition
-	if after != "" {
-		t, err := time.Parse(time.RFC3339, after)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
-		}
-		afterTime := primitive.NewDateTimeFromTime(t)
-		filter["timestamp"] = bson.M{"$gt": afterTime}
-	}
-
-	// Setting find options: newest first, limit set to MessagePageSize
-	opts := options.Find().
-		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
-		SetLimit(int64(config.MessagePageSize))
-
-	// Executing find query
-	cursor, err := col.Find(ctx, filter, opts)
+	// Getting conversation
+	messages, err := s.conversationRepo.GetConversation(ctx, conversationID, before, after)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "mongo find error: %v", err)
-	}
-	defer cursor.Close(ctx)
-
-	// Temporary slice for raw documents
-	var docs []bson.M
-
-	if err := cursor.All(ctx, &docs); err != nil {
-		return nil, status.Errorf(codes.Internal, "cursor decode error: %v", err)
+		return nil, err
 	}
 
 	// Convert to protobuf messages
-	messages := make([]*pb.Message, 0, len(docs))
+	conversation := make([]*pb.Message, 0, len(messages))
 
-	for _, d := range docs {
-		msg := &pb.Message{}
+	for _, msg := range messages {
+		protoMsg := &pb.Message{}
 
 		// id
-		if id, ok := d["id"].(string); ok {
-			msg.Id = id
-		}
+		protoMsg.Id = msg.ID
 
 		// conversationId
-		if conv, ok := d["conversationid"].(string); ok {
-			msg.ConversationId = conv
-		}
+		protoMsg.ConversationId = msg.ConversationID
 
 		// sender
-		if sender, ok := d["sender"].(string); ok {
-			msg.Sender = sender
-		}
+		protoMsg.Sender = msg.Sender
 
 		// destination
-		if dest, ok := d["destination"].(string); ok {
-			msg.Destination = dest
-		}
+		protoMsg.Destination = msg.Sender
 
 		// content
-		if content, ok := d["content"].(string); ok {
-			msg.Content = content
-		}
+		protoMsg.Content = msg.Content
 
 		// timestamp
-		if ts, ok := d["timestamp"].(primitive.DateTime); ok {
-			msg.Timestamp = timestamppb.New(ts.Time())
-		}
+		protoMsg.Timestamp = timestamppb.New(msg.Timestamp)
 
-		messages = append(messages, msg)
+		conversation = append(conversation, protoMsg)
 	}
 
-	// Reverse back to oldest → newest (UI-friendly)
-	slices.Reverse(messages)
-
 	return &pb.GetMessagesResponse{
-		Messages: messages,
+		Messages: conversation,
 	}, nil
 }

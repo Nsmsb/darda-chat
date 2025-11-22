@@ -2,6 +2,8 @@ package server
 
 import (
 	pb "github.com/nsmsb/darda-chat/app/message-reader-service/internal/api/message/gen"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/db"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/repository"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/server/interceptor"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/service"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
@@ -29,8 +31,12 @@ func NewMessageGRPCServer() *grpc.Server {
 		),
 	)
 
+	// Preparing for message service creation
+	mongoClient := db.Client()
+	conversationRepo := repository.NewMongoConversationRepository(mongoClient)
+
 	// Creating message service
-	messageService := service.NewMessageService()
+	messageService := service.NewMessageService(conversationRepo)
 
 	// Register Message service
 	pb.RegisterMessageServiceServer(server, messageService)

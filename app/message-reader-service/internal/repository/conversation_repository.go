@@ -8,5 +8,5 @@ import (
 
 type ConversationRepository interface {
 	// GetConversation retrieves messages for a given conversation ID and before/after cursors.
-	GetConversation(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error)
+	GetConversationMessages(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error)
 }

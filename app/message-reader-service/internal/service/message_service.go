@@ -37,7 +37,7 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 	}
 
 	// Getting conversation
-	messages, err := s.conversationRepo.GetConversation(ctx, conversationID, before, after)
+	messages, err := s.conversationRepo.GetConversationMessages(ctx, conversationID, before, after)
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ func NewMongoConversationRepository(client *mongo.Client) *MongoConversationRepo
 
 // GetConversation retrieves messages for a given conversation ID and before/after cursors.
 // When both before and after are empty, it retrieves the latest messages.
-func (r *MongoConversationRepository) GetConversation(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error) {
+func (r *MongoConversationRepository) GetConversationMessages(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error) {
 	config := config.Get()
 
 	// Getting collection

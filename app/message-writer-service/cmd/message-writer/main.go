@@ -48,16 +48,16 @@ func main() {
 		Password: config.RedisPass,
 		DB:       config.RedisDB,
 	})
-	// Test Redis connection
-	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		logger.Error("Error connecting to Redis", zap.Error(err))
-		os.Exit(1)
-	}
 	defer func() {
 		if err := redisClient.Close(); err != nil {
 			logger.Error("Error closing Redis connection", zap.Error(err))
 		}
 	}()
+	// Test Redis connection
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		logger.Error("Error connecting to Redis", zap.Error(err))
+		os.Exit(1)
+	}
 
 	// Initializing message consumer
 	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName, dbClient, redisClient)

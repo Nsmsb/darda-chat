@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/db"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/server"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
 	"github.com/redis/go-redis/v9"
@@ -43,6 +44,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Creating MongoDB client
+	mongoClient := db.Client()
+
 	// Create listener
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", config.Port))
 	if err != nil {
@@ -50,7 +54,7 @@ func main() {
 	}
 
 	// Create gRPC server with already registered handlers
-	s := server.NewMessageGRPCServer()
+	s := server.NewMessageGRPCServer(mongoClient, redisClient)
 
 	go func() {
 

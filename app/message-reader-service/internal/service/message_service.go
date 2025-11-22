@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	pb "github.com/nsmsb/darda-chat/app/message-reader-service/internal/api/message/gen"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/repository"
@@ -12,12 +13,14 @@ import (
 
 type MessageService struct {
 	pb.UnimplementedMessageServiceServer
-	conversationRepo repository.ConversationRepository
+	conversationRepo      repository.ConversationRepository
+	conversationCacheRepo repository.ConversationCacheRepository
 }
 
-func NewMessageService(conversationRepo repository.ConversationRepository) *MessageService {
+func NewMessageService(conversationRepo repository.ConversationRepository, conversationCacheRepo repository.ConversationCacheRepository) *MessageService {
 	return &MessageService{
-		conversationRepo: conversationRepo,
+		conversationRepo:      conversationRepo,
+		conversationCacheRepo: conversationCacheRepo,
 	}
 }
 
@@ -36,10 +39,25 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		return nil, status.Error(codes.InvalidArgument, "only one of 'before' or 'after' can be set")
 	}
 
-	// Getting conversation
-	messages, err := s.conversationRepo.GetConversationMessages(ctx, conversationID, before, after)
+	// Getting conversation messages from cache
+	convKey := fmt.Sprintf("conversation:%s:%s", conversationID, before+after)
+	messages, err := s.conversationCacheRepo.GetConversationMessages(convKey)
 	if err != nil {
 		return nil, err
+	}
+
+	// Load from database if cache miss
+	if len(messages) == 0 {
+		// Getting conversation
+		messages, err = s.conversationRepo.GetConversationMessages(ctx, conversationID, before, after)
+		if err != nil {
+			return nil, err
+		}
+		// Setting cache
+		err = s.conversationCacheRepo.SetConversationMessages(convKey, messages)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Convert to protobuf messages

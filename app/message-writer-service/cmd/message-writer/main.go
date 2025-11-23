@@ -7,12 +7,11 @@ import (
 	"syscall"
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
-	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/consumer"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/service"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -42,31 +41,14 @@ func main() {
 		}
 	}()
 
-	// Connection to Redis
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddr,
-		Password: config.RedisPass,
-		DB:       config.RedisDB,
-	})
-	defer func() {
-		if err := redisClient.Close(); err != nil {
-			logger.Error("Error closing Redis connection", zap.Error(err))
-		}
-	}()
-	// Test Redis connection
-	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		logger.Error("Error connecting to Redis", zap.Error(err))
-		os.Exit(1)
-	}
-
-	// Initializing message consumer
-	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName, dbClient, redisClient)
-	logger.Info("Initializing message consumer")
-	consumer := consumer.NewMessageConsumer(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
+	// Initializing Message consumer Service
+	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName, dbClient)
+	logger.Info("Initializing message consumer service")
+	consumerService := service.NewMessageConsumerService(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
 
 	// Declaring the message queue
 	logger.Info("Declaring message queue", zap.String("queue", config.MsgQueue))
-	err := consumer.DeclareQueue(config.MsgQueue)
+	err := consumerService.DeclareQueue(config.MsgQueue)
 	if err != nil {
 		logger.Error("Failed to declare queue", zap.Error(err))
 		return
@@ -75,12 +57,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Starting the message consumer with context
+	// Starting the message consumerService with context
 	go func() {
-		logger.Info("Starting message consumer", zap.String("queue", config.MsgQueue))
-		err = consumer.Start(ctx)
+		logger.Info("Starting message consumerService", zap.String("queue", config.MsgQueue))
+		err = consumerService.Start(ctx)
 		if err != nil {
-			logger.Error("Failed to start message consumer", zap.Error(err))
+			logger.Error("Failed to start message consumerService", zap.Error(err))
 			cancel()
 		}
 	}()
@@ -93,11 +75,11 @@ func main() {
 	<-quit
 	logger.Info("Received shutdown signal, waiting for workers to finish...")
 
-	// Gracefully stop the consumer by cancelling the context
+	// Gracefully stop the consumerService by cancelling the context
 	cancel()
 
-	// Wait for all workers and close the consumer
-	consumer.Close()
+	// Wait for all workers and close the consumerService
+	consumerService.Close()
 
 	logger.Info("Gracefully shutting down the writer service")
 }

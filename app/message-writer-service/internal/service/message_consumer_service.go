@@ -1,4 +1,4 @@
-package consumer
+package service
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type MessageConsumer struct {
+type MessageConsumerService struct {
 	handler handler.Handler
 	queue   string
 	conn    *amqp.Connection
@@ -20,9 +20,9 @@ type MessageConsumer struct {
 	wg      sync.WaitGroup
 }
 
-// NewMessageConsumer creates a new MessageConsumer instance.
-func NewMessageConsumer(queue string, handler handler.Handler, conn *amqp.Connection, poolSize int) *MessageConsumer {
-	return &MessageConsumer{
+// NewMessageConsumerService creates a new MessageConsumerService instance.
+func NewMessageConsumerService(queue string, handler handler.Handler, conn *amqp.Connection, poolSize int) *MessageConsumerService {
+	return &MessageConsumerService{
 		handler: handler,
 		queue:   queue,
 		conn:    conn,
@@ -31,7 +31,7 @@ func NewMessageConsumer(queue string, handler handler.Handler, conn *amqp.Connec
 }
 
 // DeclareQueue declares the queue to consume messages from.
-func (c *MessageConsumer) DeclareQueue(queueName string) error {
+func (c *MessageConsumerService) DeclareQueue(queueName string) error {
 	ch, err := c.conn.Channel()
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (c *MessageConsumer) DeclareQueue(queueName string) error {
 
 // Start starts consuming messages from the queue.
 // Messages are processed in parallel based on the pool size.
-func (c *MessageConsumer) Start(ctx context.Context) error {
+func (c *MessageConsumerService) Start(ctx context.Context) error {
 	log := logger.Get()
 
 	ch, err := c.conn.Channel()
@@ -128,7 +128,7 @@ func (c *MessageConsumer) Start(ctx context.Context) error {
 }
 
 // Close gracefully shuts down the consumer, waiting for all workers to finish.
-func (c *MessageConsumer) Close() error {
+func (c *MessageConsumerService) Close() error {
 	c.wg.Wait()
 	return c.conn.Close()
 }

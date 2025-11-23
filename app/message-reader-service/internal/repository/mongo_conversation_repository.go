@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
@@ -41,22 +42,38 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 
 	// Adding cursor conditions
 	if before != "" {
-		t, err := time.Parse(time.RFC3339, before)
+		// Parsing before cursor
+		splittedCursor := strings.SplitN(before, "_", 2)
+		if len(splittedCursor) != 2 {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid before cursor format")
+		}
+		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
+		t, err := time.Parse(time.RFC3339, cursorTs)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
 		}
 		beforeTime := primitive.NewDateTimeFromTime(t)
+		// Adding $lt condition and excluding the cursor ID itself using $ne
 		filter["timestamp"] = bson.M{"$lt": beforeTime}
+		filter["_id"] = bson.M{"$ne": cursorID}
 	}
 
 	// If after is set, add $gt condition
 	if after != "" {
-		t, err := time.Parse(time.RFC3339, after)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
+		// Parsing before cursor
+		splittedCursor := strings.SplitN(before, "_", 2)
+		if len(splittedCursor) != 2 {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid before cursor format")
 		}
+		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
+		t, err := time.Parse(time.RFC3339, cursorTs)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
+		}
+		// Adding $gt condition and excluding the cursor ID itself using $ne
 		afterTime := primitive.NewDateTimeFromTime(t)
 		filter["timestamp"] = bson.M{"$gt": afterTime}
+		filter["_id"] = bson.M{"$ne": cursorID}
 	}
 
 	// Setting find options: newest first, limit set to MessagePageSize

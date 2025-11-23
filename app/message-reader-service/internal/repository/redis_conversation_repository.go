@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisConversationCacheRepository struct {
-	client *redis.Client
+	client   *redis.Client
+	cacheTTL time.Duration
 }
 
 func NewRedisConversationCacheRepository(client *redis.Client) *RedisConversationCacheRepository {
 	return &RedisConversationCacheRepository{
-		client: client,
+		client:   client,
+		cacheTTL: config.Get().CacheTTL,
 	}
 }
 
@@ -37,7 +40,7 @@ func (r *RedisConversationCacheRepository) SetConversationMessages(conversationK
 	}
 
 	// Setting expiration for the conversation messages
-	pipe.Expire(ctx, conversationKey, time.Hour)
+	pipe.Expire(ctx, conversationKey, r.cacheTTL)
 
 	// Executing the pipeline
 	_, err := pipe.Exec(ctx)

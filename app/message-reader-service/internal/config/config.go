@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ import (
 // Config holds the configuration values for the application.
 type Config struct {
 	Port                string
+	CacheTTL            time.Duration
 	MessagePageSize     int
 	MongoDBName         string
 	MongoCollectionName string
@@ -41,10 +43,15 @@ func Get() *Config {
 	if err != nil {
 		logger.Get().Error("Invalid MESSAGE_PAGE_SIZE, using default", zap.Int("value", messagesPageSize), zap.Error(err))
 	}
+	cacheTTL, err := time.ParseDuration(getEnv("CACHE_TTL_HOURS", "6h"))
+	if err != nil {
+		logger.Get().Error("Invalid CACHE_TTL_HOURS, using default", zap.Duration("value", cacheTTL), zap.Error(err))
+	}
 
 	once.Do(func() {
 		instance = &Config{
 			Port:                getEnv("PORT", "50051"),
+			CacheTTL:            cacheTTL,
 			MessagePageSize:     messagesPageSize,
 			MongoDBName:         getEnv("MONGO_DB_NAME", "darda_chat"),
 			MongoCollectionName: getEnv("MONGO_COLLECTION_NAME", "messages"),

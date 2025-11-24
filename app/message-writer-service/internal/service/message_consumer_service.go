@@ -108,7 +108,7 @@ func (c *MessageConsumerService) Start(ctx context.Context) error {
 				}
 
 				// Process the message
-				if err := c.handler.Handle(context.Background(), event); err != nil {
+				if err := c.handler.Handle(ctx, event); err != nil {
 					log.Error("Failed to process message", zap.Error(err))
 					_ = m.Nack(false, true) // requeue the message
 					return

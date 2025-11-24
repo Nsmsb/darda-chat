@@ -4,26 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/model"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/repository"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type MessageHandler struct {
-	dbName               string
-	collectionName       string
-	outboxCollectionName string
-	dbClient             *mongo.Client
+	messageRepository       repository.MessageRepository
+	outboxMessageRepository repository.OutboxMessageRepository
+	client                  *mongo.Client
 }
 
 // NewMessageHandler creates a new MessageHandler instance.
-func NewMessageHandler(dbName, collectionName string, dbClient *mongo.Client) *MessageHandler {
+func NewMessageHandler(messageRepository repository.MessageRepository, outboxMessageRepository repository.OutboxMessageRepository, client *mongo.Client) *MessageHandler {
 	return &MessageHandler{
-		dbName:               dbName,
-		collectionName:       collectionName,
-		outboxCollectionName: fmt.Sprintf("%s_outbox", collectionName),
-		dbClient:             dbClient,
+		messageRepository:       messageRepository,
+		outboxMessageRepository: outboxMessageRepository,
+		client:                  client,
 	}
 }
 
@@ -43,9 +41,9 @@ func (h *MessageHandler) Handle(ctx context.Context, event model.Event) error {
 }
 
 // insertMessageWithOutbox inserts a message into the messages collection and creates an outbox event in a transaction.
-func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, msg model.Message) error {
-	// start a session
-	session, err := h.dbClient.StartSession()
+func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, message model.Message) error {
+	// Start a session
+	session, err := h.client.StartSession()
 	if err != nil {
 		return fmt.Errorf("start session error: %w", err)
 	}
@@ -54,21 +52,13 @@ func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, msg model.
 	// transaction function
 	callback := func(sessionCtx mongo.SessionContext) (interface{}, error) {
 		// Insert message into messages collection
-		messageCollection := h.dbClient.Database(h.dbName).Collection(h.collectionName)
-		_, err := messageCollection.InsertOne(sessionCtx, msg)
+		err := h.messageRepository.WriteMessage(sessionCtx, message)
 		if err != nil {
 			return nil, fmt.Errorf("insert message error: %w", err)
 		}
 
 		// Insert outbox event into outbox collection
-		outboxCollection := h.dbClient.Database(h.dbName).Collection(h.outboxCollectionName)
-		outboxEvent := model.OutboxMessage{
-			ID:          msg.ID,
-			Payload:     msg,
-			CreatedAt:   time.Now().UTC(),
-			ProcessedAt: time.Time{},
-		}
-		_, err = outboxCollection.InsertOne(sessionCtx, outboxEvent)
+		err = h.outboxMessageRepository.WriteOutboxMessage(sessionCtx, message)
 		if err != nil {
 			return nil, fmt.Errorf("insert outbox event error: %w", err)
 		}
@@ -76,7 +66,7 @@ func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, msg model.
 		return nil, nil
 	}
 
-	// execute transaction
+	// Execute transaction
 	_, err = session.WithTransaction(ctx, callback)
 	if err != nil {
 		return fmt.Errorf("transaction error: %w", err)

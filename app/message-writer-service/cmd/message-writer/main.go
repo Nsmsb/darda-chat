@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +10,7 @@ import (
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/repository"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/service"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
@@ -41,8 +43,12 @@ func main() {
 		}
 	}()
 
+	// Preparing repositories
+	messageRepository := repository.NewMongoMessageRepository(dbClient, config.MongoDBName, config.MongoCollectionName)
+	outboxRepository := repository.NewMongoOutboxMessageRepository(dbClient, config.MongoDBName, fmt.Sprintf("%s_outbox", config.MongoCollectionName))
+
 	// Initializing Message consumer Service
-	handler := handler.NewMessageHandler(config.MongoDBName, config.MongoCollectionName, dbClient)
+	handler := handler.NewMessageHandler(messageRepository, outboxRepository, dbClient)
 	logger.Info("Initializing message consumer service")
 	consumerService := service.NewMessageConsumerService(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
 

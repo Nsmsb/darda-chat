@@ -20,17 +20,21 @@ spec:
           ports:
             - containerPort: 27017
               name: mongo
-          env:
-            - name: MONGO_INITDB_ROOT_USERNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: mongo-config
-                  key: MONGO_USER
-            - name: MONGO_INITDB_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mongo-secret
-                  key: mongo-password
+          # env:
+          #   - name: MONGO_INITDB_ROOT_USERNAME
+          #     valueFrom:
+          #       configMapKeyRef:
+          #         name: mongo-config
+          #         key: MONGO_USER
+          #   - name: MONGO_INITDB_ROOT_PASSWORD
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: mongo-secret
+          #         key: mongo-password
+          args:
+            - "--replSet"
+            - "rs0"
+            - "--bind_ip_all"
           volumeMounts:
             - name: mongo-persistent-storage
               mountPath: /data/db
@@ -42,3 +46,10 @@ spec:
         resources:
           requests:
             storage: 1Gi
+# following need to be executed to initiate replica set
+#  rs.initiate({
+#   _id: "rs0",
+#   members: [
+#     { _id: 0, host: "mongo-0.mongo.mongodb.svc.cluster.local:27017" }
+#   ]
+# })

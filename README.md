@@ -29,6 +29,21 @@ kubectl port-forward services/chat-service 8080:8080
 # For now there is no front-end yet, a simple html page is provided to interact with the backend, the auth is not yet implemented, we only rely on the ID parameter provided in the URL by the client.
 ```
 
+### Extra step
+
+For easier dev env, auth was disabled for MongoDB to be able to use replicaset mode without pain of keyfile generation. This is not recommended for production.
+
+So we need to manually initialize the replicaset:
+
+```js
+rs.initiate({
+  _id: "rs0",
+  members: [
+    { _id: 0, host: "mongo-0.mongo.mongodb.svc.cluster.local:27017" }
+  ]
+})
+```
+
 No production images are available for now, Skaffold will build and push the images.
 
 ## Roadmap

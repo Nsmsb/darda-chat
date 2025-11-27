@@ -6,5 +6,6 @@ import (
 )
 
 type MessageRepository interface {
+	Client() *mongo.Client
 	WriteMessage(ctx mongo.SessionContext, message model.Message) error
 }

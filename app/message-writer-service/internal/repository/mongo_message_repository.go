@@ -21,6 +21,10 @@ func NewMongoMessageRepository(client *mongo.Client, dbName string, collectionNa
 	}
 }
 
+func (r *MongoMessageRepository) Client() *mongo.Client {
+	return r.client
+}
+
 func (r *MongoMessageRepository) WriteMessage(ctx mongo.SessionContext, message model.Message) error {
 	messageCollection := r.client.Database(r.dbName).Collection(r.collectionName)
 	_, err := messageCollection.InsertOne(ctx, message)

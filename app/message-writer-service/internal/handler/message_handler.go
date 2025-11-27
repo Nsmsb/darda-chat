@@ -49,7 +49,7 @@ func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, message mo
 	}
 	defer session.EndSession(ctx)
 
-	// transaction function
+	// Transaction function
 	callback := func(sessionCtx mongo.SessionContext) (interface{}, error) {
 		// Insert message into messages collection
 		err := h.messageRepository.WriteMessage(sessionCtx, message)

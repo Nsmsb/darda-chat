@@ -30,8 +30,8 @@ func NewMessageConsumerService(queue string, handler handler.Handler, conn *amqp
 	}
 }
 
-// DeclareQueue declares the queue to consume messages from.
-func (c *MessageConsumerService) DeclareQueue(queueName string) error {
+// declareQueue declares the queue to consume messages from.
+func (c *MessageConsumerService) declareQueue(queueName string) error {
 	ch, err := c.conn.Channel()
 	if err != nil {
 		return err
@@ -55,6 +55,14 @@ func (c *MessageConsumerService) DeclareQueue(queueName string) error {
 func (c *MessageConsumerService) Start(ctx context.Context) error {
 	log := logger.Get()
 
+	// Declare the queue
+	log.Info("Declaring queue", zap.String("queue", c.queue))
+	err := c.declareQueue(c.queue)
+	if err != nil {
+		log.Error("Failed to declare queue", zap.Error(err))
+		return err
+	}
+
 	ch, err := c.conn.Channel()
 	if err != nil {
 		log.Error("Failed to open a channel", zap.Error(err))
@@ -75,6 +83,7 @@ func (c *MessageConsumerService) Start(ctx context.Context) error {
 		return err
 	}
 
+	log.Info("Started consuming messages", zap.String("queue", c.queue))
 	for {
 		select {
 		case <-ctx.Done():

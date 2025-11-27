@@ -52,14 +52,15 @@ func main() {
 	logger.Info("Initializing message consumer service")
 	consumerService := service.NewMessageConsumerService(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
 
-	// Declaring the message queue
-	logger.Info("Declaring message queue", zap.String("queue", config.MsgQueue))
-	err := consumerService.DeclareQueue(config.MsgQueue)
+	// Initializing the message dispatcher service
+	dispatcherCh, err := conn.Channel()
 	if err != nil {
-		logger.Error("Failed to declare queue", zap.Error(err))
-		return
+		logger.Fatal("Failed to open a channel", zap.Error(err))
 	}
+	dispatcher := service.NewRabbitMQDispatcher(dispatcherCh, "message.dispatched")
+	dispatcherService := service.NewMessageDispatcherService(dispatcher, outboxRepository)
 
+	// Creating root context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -69,6 +70,16 @@ func main() {
 		err = consumerService.Start(ctx)
 		if err != nil {
 			logger.Error("Failed to start message consumerService", zap.Error(err))
+			cancel()
+		}
+	}()
+
+	// Starting the message dispatcher service with context
+	go func() {
+		logger.Info("Starting message dispatcher service")
+		err = dispatcherService.Start(ctx)
+		if err != nil {
+			logger.Error("Failed to start message dispatcher service", zap.Error(err))
 			cancel()
 		}
 	}()
@@ -85,6 +96,7 @@ func main() {
 	cancel()
 
 	// Wait for all workers and close the consumerService
+	dispatcherCh.Close()
 	consumerService.Close()
 
 	logger.Info("Gracefully shutting down the writer service")

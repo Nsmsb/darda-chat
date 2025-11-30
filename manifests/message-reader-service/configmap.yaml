@@ -12,3 +12,8 @@ data:
   MONGO_COLLECTION_NAME: "messages"
   REDIS_ADDR: "redis:6379"
   REDIS_DB: "0"
+  WORKER_POOL_SIZE: "10"
+  AMQP_USER: "devuser"
+  AMQP_HOST: "rabbitmq-service.rabbitmq.svc.cluster.local:5672"
+  MSG_QUEUE: "conversation.cache"
+  MSG_EXCHANGE: "message.dispatched"

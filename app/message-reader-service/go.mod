@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.17.0
 	go.mongodb.org/mongo-driver v1.17.6
 	go.uber.org/multierr v1.10.0 // indirect

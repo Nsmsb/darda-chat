@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/model"
 	"github.com/redis/go-redis/v9"
 )
@@ -16,11 +15,32 @@ type RedisConversationCacheRepository struct {
 	cacheTTL time.Duration
 }
 
-func NewRedisConversationCacheRepository(client *redis.Client) *RedisConversationCacheRepository {
+func NewRedisConversationCacheRepository(client *redis.Client, cacheTTL time.Duration) *RedisConversationCacheRepository {
 	return &RedisConversationCacheRepository{
 		client:   client,
-		cacheTTL: config.Get().CacheTTL,
+		cacheTTL: cacheTTL,
 	}
+}
+
+func (r *RedisConversationCacheRepository) SetConversationMessage(conversationKey string, messages *model.Message) error {
+	ctx := context.Background()
+
+	jsonMsg, err := json.Marshal(messages)
+	if err != nil {
+		return fmt.Errorf("message json marshal error: %w", err)
+	}
+
+	// Using a Pipe to add message and set expiration atomically
+	pipe := r.client.Pipeline()
+
+	pipe.RPush(ctx, conversationKey, jsonMsg)
+	pipe.Expire(ctx, conversationKey, r.cacheTTL)
+
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("redis pipeline exec error: %w", err)
+	}
+	return nil
 }
 
 func (r *RedisConversationCacheRepository) SetConversationMessages(conversationKey string, messages []*model.Message) error {

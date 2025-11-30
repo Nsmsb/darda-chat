@@ -24,6 +24,12 @@ type Config struct {
 	RedisAddr           string
 	RedisPass           string
 	RedisDB             int
+	AMQPUser            string
+	AMQPPass            string
+	AMQPHost            string
+	MsgQueue            string
+	MsgExchange         string
+	WorkerPoolSize      int
 }
 
 var (
@@ -33,7 +39,7 @@ var (
 
 // Get returns the singleton instance of Config, it reads the configs only once.
 func Get() *Config {
-	var messagesPageSize, redisDB int = 20, 0 // default value
+	var messagesPageSize, redisDB, workerPoolSize int = 20, 0, 10 // default value
 	var err error
 	redisDB, err = strconv.Atoi(getEnv("REDIS_DB", "0"))
 	if err != nil {
@@ -46,6 +52,14 @@ func Get() *Config {
 	cacheTTL, err := time.ParseDuration(getEnv("CACHE_TTL_HOURS", "6h"))
 	if err != nil {
 		logger.Get().Error("Invalid CACHE_TTL_HOURS, using default", zap.Duration("value", cacheTTL), zap.Error(err))
+	}
+	workerPoolSizeEnv := getEnv("WORKER_POOL_SIZE", "")
+	if workerPoolSizeEnv != "" {
+		if val, err := strconv.Atoi(workerPoolSizeEnv); err == nil {
+			workerPoolSize = val
+		} else {
+			logger.Get().Error("Invalid CONSUMER_POOL_SIZE, using default", zap.String("value", workerPoolSizeEnv), zap.Error(err))
+		}
 	}
 
 	once.Do(func() {
@@ -62,6 +76,12 @@ func Get() *Config {
 			RedisAddr:           getEnv("REDIS_ADDR", "localhost:6379"),
 			RedisPass:           getEnv("REDIS_PASS", ""),
 			RedisDB:             redisDB,
+			WorkerPoolSize:      workerPoolSize,
+			AMQPUser:            getEnv("AMQP_USER", ""),
+			AMQPPass:            getEnv("AMQP_PASS", ""),
+			AMQPHost:            getEnv("AMQP_HOST", ""),
+			MsgQueue:            getEnv("MSG_QUEUE", "conversation.cache"),
+			MsgExchange:         getEnv("MSG_EXCHANGE", "message.dispatched"),
 		}
 	})
 	return instance

@@ -10,7 +10,7 @@ type EventEnvelope[T any] struct {
 
 type Source[T any] interface {
 	DeclareQueue(ctx context.Context) error
-	Events() <-chan EventEnvelope[T]
+	Events(ctx context.Context) <-chan EventEnvelope[T]
 	Ack(deliveryTag uint64) error
 	Nack(deliveryTag uint64, requeue bool) error
 }

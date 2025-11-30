@@ -39,7 +39,7 @@ func (wp *WorkerPool[T]) Start(ctx context.Context) error {
 	}
 	log.Info("Source queue declared successfully")
 
-	events := wp.source.Events()
+	events := wp.source.Events(ctx)
 	log.Info("Starting worker pool", zap.Int("poolSize", wp.poolSize))
 	for {
 		select {

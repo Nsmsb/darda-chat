@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -61,7 +62,10 @@ func (r *RabbitMQSource[T]) DeclareQueue(ctx context.Context) error {
 	return err
 }
 
-func (r *RabbitMQSource[T]) Events() <-chan EventEnvelope[T] {
+func (r *RabbitMQSource[T]) Events(ctx context.Context) <-chan EventEnvelope[T] {
+	log := logger.FromContext(ctx)
+
+	// Create output channel
 	out := make(chan EventEnvelope[T])
 
 	msgs, _ := r.channel.Consume(
@@ -75,21 +79,29 @@ func (r *RabbitMQSource[T]) Events() <-chan EventEnvelope[T] {
 	)
 
 	go func() {
-		for d := range msgs {
-			var payload T
-			err := json.Unmarshal(d.Body, &payload)
-			if err != nil {
-				// failed to unmarshal, nack the message and continue
-				_ = r.Nack(d.DeliveryTag, false)
-				continue
-			}
 
-			envelope := EventEnvelope[T]{
-				ID:          d.MessageId,
-				Payload:     &payload,
-				DeliveryTag: d.DeliveryTag,
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("Shutting down RabbitMQ source event listener")
+				close(out)
+				return
+			case d := <-msgs:
+				var payload T
+				err := json.Unmarshal(d.Body, &payload)
+				if err != nil {
+					// failed to unmarshal, nack the message and continue
+					_ = r.Nack(d.DeliveryTag, false)
+					continue
+				}
+
+				envelope := EventEnvelope[T]{
+					ID:          d.MessageId,
+					Payload:     &payload,
+					DeliveryTag: d.DeliveryTag,
+				}
+				out <- envelope
 			}
-			out <- envelope
 		}
 	}()
 

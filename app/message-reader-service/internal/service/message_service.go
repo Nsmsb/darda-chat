@@ -6,6 +6,8 @@ import (
 
 	pb "github.com/nsmsb/darda-chat/app/message-reader-service/internal/api/message/gen"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/repository"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -26,6 +28,8 @@ func NewMessageService(conversationRepo repository.ConversationRepository, conve
 
 // GetMessages retrieves messages for a given conversation ID.
 func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessagesRequest) (*pb.GetMessagesResponse, error) {
+	log := logger.FromContext(ctx)
+
 	// Getting Conversation ID an cursor parameters from request
 	conversationID := request.GetConversationId()
 	if conversationID == "" {
@@ -48,6 +52,7 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 
 	// Load from database if cache miss
 	if len(messages) == 0 {
+		log.Info("Cache miss for conversation", zap.String("conversationKey", convKey))
 		// Getting conversation
 		messages, err = s.conversationRepo.GetConversationMessages(ctx, conversationID, before, after)
 		if err != nil {
@@ -58,6 +63,7 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		if err != nil {
 			return nil, err
 		}
+		log.Info("Cache hit for conversation", zap.String("conversationKey", convKey), zap.Int("messageCount", len(messages)))
 	}
 
 	// Convert to protobuf messages

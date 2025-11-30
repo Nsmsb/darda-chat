@@ -6,80 +6,110 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-reader-service/internal/model"
+	"github.com/nsmsb/darda-chat/app/message-reader-service/pkg/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type MongoConversationRepository struct {
-	client *mongo.Client
+	client         *mongo.Client
+	dbName         string
+	collectionName string
+	pageSize       int
 }
 
 // NewMongoConversationRepository creates a new instance of MongoConversationRepository.
-func NewMongoConversationRepository(client *mongo.Client) *MongoConversationRepository {
+func NewMongoConversationRepository(client *mongo.Client, dbName string, collectionName string, pageSize int) *MongoConversationRepository {
 	return &MongoConversationRepository{
-		client: client,
+		client:         client,
+		dbName:         dbName,
+		collectionName: collectionName,
+		pageSize:       pageSize,
 	}
 }
 
 // GetConversation retrieves messages for a given conversation ID and before/after cursors.
 // When both before and after are empty, it retrieves the latest messages.
 func (r *MongoConversationRepository) GetConversationMessages(ctx context.Context, conversationID string, before string, after string) ([]*model.Message, error) {
-	config := config.Get()
+	log := logger.FromContext(ctx)
+	log.Info("Fetching conversation messages from MongoDB", zap.String("conversationID", conversationID), zap.String("before", before), zap.String("after", after))
+
+	// Handling error when both after and before cursors are set
+	if before != "" && after != "" {
+		return nil, status.Error(codes.InvalidArgument, "only one of 'before' or 'after' can be set")
+	}
 
 	// Getting collection
-	col := r.client.Database(config.MongoDBName).Collection(config.MongoCollectionName)
+	col := r.client.Database(r.dbName).Collection(r.collectionName)
 
 	// MongoDB filter (by conversationId)
 	filter := bson.M{
-		"conversationid": conversationID,
+		"conversationId": conversationID,
 	}
 
 	// Adding cursor conditions
 	if before != "" {
-		// Parsing before cursor
 		splittedCursor := strings.SplitN(before, "_", 2)
 		if len(splittedCursor) != 2 {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid before cursor format")
 		}
+
 		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
+
 		t, err := time.Parse(time.RFC3339, cursorTs)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
 		}
 		beforeTime := primitive.NewDateTimeFromTime(t)
-		// Adding $lt condition and excluding the cursor ID itself using $ne
-		filter["timestamp"] = bson.M{"$lt": beforeTime}
-		filter["_id"] = bson.M{"$ne": cursorID}
+
+		filter["$or"] = []bson.M{
+			{
+				"timestamp": bson.M{"$lt": beforeTime},
+			},
+			{
+				"timestamp": beforeTime,
+				"_id":       bson.M{"$lt": cursorID},
+			},
+		}
 	}
 
 	// If after is set, add $gt condition
 	if after != "" {
-		// Parsing before cursor
-		splittedCursor := strings.SplitN(before, "_", 2)
+		splittedCursor := strings.SplitN(after, "_", 2)
 		if len(splittedCursor) != 2 {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid before cursor format")
+			return nil, status.Errorf(codes.InvalidArgument, "invalid after cursor format")
 		}
+
 		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
+
 		t, err := time.Parse(time.RFC3339, cursorTs)
 		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
 		}
-		// Adding $gt condition and excluding the cursor ID itself using $ne
+
 		afterTime := primitive.NewDateTimeFromTime(t)
-		filter["timestamp"] = bson.M{"$gt": afterTime}
-		filter["_id"] = bson.M{"$ne": cursorID}
+
+		filter["$or"] = []bson.M{
+			{
+				"timestamp": bson.M{"$gt": afterTime},
+			},
+			{
+				"timestamp": afterTime,
+				"_id":       bson.M{"$gt": cursorID},
+			},
+		}
 	}
 
-	// Setting find options: newest first, limit set to MessagePageSize
+	// Setting find options: newest first, limit set to pageSize
 	opts := options.Find().
-		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
-		SetLimit(int64(config.MessagePageSize))
+		SetSort(bson.D{{Key: "timestamp", Value: -1}, {Key: "_id", Value: -1}}).
+		SetLimit(int64(r.pageSize))
 
 	// Executing find query
 	cursor, err := col.Find(ctx, filter, opts)
@@ -88,7 +118,6 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 	}
 	defer cursor.Close(ctx)
 
-	// Temporary slice for raw documents
 	var messages []*model.Message
 
 	if err := cursor.All(ctx, &messages); err != nil {

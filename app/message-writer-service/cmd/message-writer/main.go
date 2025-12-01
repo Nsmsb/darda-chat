@@ -9,7 +9,7 @@ import (
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
-	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/processor"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/repository"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/service"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
@@ -48,15 +48,17 @@ func main() {
 	outboxRepository := repository.NewMongoOutboxMessageRepository(dbClient, config.MongoDBName, fmt.Sprintf("%s_outbox", config.MongoCollectionName))
 
 	// Initializing Message consumer Service
-	handler := handler.NewMessageHandler(messageRepository, outboxRepository, dbClient)
+	processor := processor.NewMessageProcessor(messageRepository, outboxRepository, dbClient)
 	logger.Info("Initializing message consumer service")
-	consumerService := service.NewMessageConsumerService(config.MsgQueue, handler, conn, config.ConsumerPoolSize)
+	consumerService := service.NewMessageConsumerService(config.MsgQueue, processor, conn, config.ConsumerPoolSize)
 
 	// Initializing the message dispatcher service
 	dispatcherCh, err := conn.Channel()
 	if err != nil {
 		logger.Fatal("Failed to open a channel", zap.Error(err))
 	}
+	defer dispatcherCh.Close()
+
 	dispatcher := service.NewRabbitMQDispatcher(dispatcherCh, "message.dispatched")
 	dispatcherService := service.NewMessageDispatcherService(dispatcher, outboxRepository)
 
@@ -95,9 +97,8 @@ func main() {
 	// Gracefully stop the consumerService by cancelling the context
 	cancel()
 
-	// Wait for all workers and close the consumerService
-	dispatcherCh.Close()
-	consumerService.Close()
+	// Wait for all workers and stop the consumerService
+	consumerService.Stop()
 
 	logger.Info("Gracefully shutting down the writer service")
 }

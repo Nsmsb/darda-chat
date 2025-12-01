@@ -5,28 +5,28 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/handler"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/model"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/processor"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
 
 type MessageConsumerService struct {
-	handler handler.Handler
-	queue   string
-	conn    *amqp.Connection
-	workers chan struct{}
-	wg      sync.WaitGroup
+	processor processor.Processor
+	queue     string
+	conn      *amqp.Connection
+	workers   chan struct{}
+	wg        sync.WaitGroup
 }
 
 // NewMessageConsumerService creates a new MessageConsumerService instance.
-func NewMessageConsumerService(queue string, handler handler.Handler, conn *amqp.Connection, poolSize int) *MessageConsumerService {
+func NewMessageConsumerService(queue string, processor processor.Processor, conn *amqp.Connection, poolSize int) *MessageConsumerService {
 	return &MessageConsumerService{
-		handler: handler,
-		queue:   queue,
-		conn:    conn,
-		workers: make(chan struct{}, poolSize),
+		processor: processor,
+		queue:     queue,
+		conn:      conn,
+		workers:   make(chan struct{}, poolSize),
 	}
 }
 
@@ -117,7 +117,7 @@ func (c *MessageConsumerService) Start(ctx context.Context) error {
 				}
 
 				// Process the message
-				if err := c.handler.Handle(ctx, event); err != nil {
+				if err := c.processor.Process(ctx, event); err != nil {
 					log.Error("Failed to process message", zap.Error(err))
 					_ = m.Nack(false, true) // requeue the message
 					return
@@ -137,7 +137,6 @@ func (c *MessageConsumerService) Start(ctx context.Context) error {
 }
 
 // Close gracefully shuts down the consumer, waiting for all workers to finish.
-func (c *MessageConsumerService) Close() error {
+func (c *MessageConsumerService) Stop() {
 	c.wg.Wait()
-	return c.conn.Close()
 }

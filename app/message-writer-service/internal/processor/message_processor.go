@@ -1,4 +1,4 @@
-package handler
+package processor
 
 import (
 	"context"
@@ -10,23 +10,23 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type MessageHandler struct {
+type MessageProcessor struct {
 	messageRepository       repository.MessageRepository
 	outboxMessageRepository repository.OutboxMessageRepository
 	client                  *mongo.Client
 }
 
-// NewMessageHandler creates a new MessageHandler instance.
-func NewMessageHandler(messageRepository repository.MessageRepository, outboxMessageRepository repository.OutboxMessageRepository, client *mongo.Client) *MessageHandler {
-	return &MessageHandler{
+// NewMessageProcessor creates a new MessageProcessor instance.
+func NewMessageProcessor(messageRepository repository.MessageRepository, outboxMessageRepository repository.OutboxMessageRepository, client *mongo.Client) *MessageProcessor {
+	return &MessageProcessor{
 		messageRepository:       messageRepository,
 		outboxMessageRepository: outboxMessageRepository,
 		client:                  client,
 	}
 }
 
-// Handle handles the message event and writes it to the database
-func (h *MessageHandler) Handle(ctx context.Context, event model.Event) error {
+// Process processes a message event and writes it to the database
+func (h *MessageProcessor) Process(ctx context.Context, event model.Event) error {
 	if event.Type == model.EventTypeMessage {
 		// Adding message to message and outbox collections
 		var msg model.Message
@@ -41,7 +41,7 @@ func (h *MessageHandler) Handle(ctx context.Context, event model.Event) error {
 }
 
 // insertMessageWithOutbox inserts a message into the messages collection and creates an outbox event in a transaction.
-func (h *MessageHandler) insertMessageWithOutbox(ctx context.Context, message model.Message) error {
+func (h *MessageProcessor) insertMessageWithOutbox(ctx context.Context, message model.Message) error {
 	// Start a session
 	session, err := h.client.StartSession()
 	if err != nil {

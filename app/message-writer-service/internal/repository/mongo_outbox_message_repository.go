@@ -115,7 +115,9 @@ func (r *MongoOutboxMessageRepository) StreamUnprocessedMessages(ctx context.Con
 
 	// Goroutine to continuously stream events
 	go func() {
-		defer stream.Close(ctx)
+		// Using context.Background() to ensure it's always closed
+		defer stream.Close(context.Background())
+		defer close(out)
 
 		for stream.Next(ctx) {
 			var event struct {

@@ -16,6 +16,7 @@ type MongoOutboxMessageRepository struct {
 	client         *mongo.Client
 	dbName         string
 	collectionName string
+	collection     *mongo.Collection
 }
 
 func NewMongoOutboxMessageRepository(client *mongo.Client, dbName string, collectionName string) *MongoOutboxMessageRepository {
@@ -23,6 +24,7 @@ func NewMongoOutboxMessageRepository(client *mongo.Client, dbName string, collec
 		client:         client,
 		dbName:         dbName,
 		collectionName: collectionName,
+		collection:     client.Database(dbName).Collection(collectionName),
 	}
 }
 
@@ -31,14 +33,13 @@ func (r *MongoOutboxMessageRepository) Client() *mongo.Client {
 }
 
 func (r *MongoOutboxMessageRepository) WriteOutboxMessage(ctx mongo.SessionContext, message model.Message) error {
-	collection := r.client.Database(r.dbName).Collection(r.collectionName)
 	outboxMessage := model.OutboxMessage{
 		ID:          message.ID,
 		Payload:     message,
 		CreatedAt:   time.Now().UTC(),
 		ProcessedAt: time.Time{},
 	}
-	_, err := collection.InsertOne(ctx, outboxMessage)
+	_, err := r.collection.InsertOne(ctx, outboxMessage)
 	if err != nil {
 		return fmt.Errorf("insert outbox event error: %w", err)
 	}
@@ -46,8 +47,6 @@ func (r *MongoOutboxMessageRepository) WriteOutboxMessage(ctx mongo.SessionConte
 }
 
 func (r *MongoOutboxMessageRepository) MarkMessageAsProcessed(ctx mongo.SessionContext, message model.OutboxMessage) error {
-	collection := r.client.Database(r.dbName).Collection(r.collectionName)
-
 	filter := bson.M{
 		"_id": message.ID,
 	}
@@ -58,7 +57,7 @@ func (r *MongoOutboxMessageRepository) MarkMessageAsProcessed(ctx mongo.SessionC
 		},
 	}
 
-	_, err := collection.UpdateOne(ctx, filter, update)
+	_, err := r.collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("mark outbox message as processed error: %w", err)
 	}
@@ -67,7 +66,6 @@ func (r *MongoOutboxMessageRepository) MarkMessageAsProcessed(ctx mongo.SessionC
 
 func (r *MongoOutboxMessageRepository) GetUnprocessedMessages(ctx mongo.SessionContext, limit int) ([]model.OutboxMessage, error) {
 	// TODO: switch to MongoDB Change Streams for real-time processing
-	collection := r.client.Database(r.dbName).Collection(r.collectionName)
 	filter := map[string]interface{}{
 		"processedAt": time.Time{},
 	}
@@ -76,7 +74,7 @@ func (r *MongoOutboxMessageRepository) GetUnprocessedMessages(ctx mongo.SessionC
 		SetLimit(int64(limit)).
 		SetSort(map[string]int{"createdAt": 1})
 
-	cursor, err := collection.Find(ctx, filter, options)
+	cursor, err := r.collection.Find(ctx, filter, options)
 	if err != nil {
 		return nil, fmt.Errorf("find unprocessed outbox messages error: %w", err)
 	}
@@ -99,11 +97,6 @@ func (r *MongoOutboxMessageRepository) GetUnprocessedMessages(ctx mongo.SessionC
 }
 
 func (r *MongoOutboxMessageRepository) StreamUnprocessedMessages(ctx context.Context) (<-chan model.OutboxMessage, error) {
-
-	collection := r.client.
-		Database(r.dbName).
-		Collection(r.collectionName)
-
 	// Pipeline: capture only inserts where processedAt is empty
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.D{
@@ -112,7 +105,7 @@ func (r *MongoOutboxMessageRepository) StreamUnprocessedMessages(ctx context.Con
 		}}},
 	}
 
-	stream, err := collection.Watch(ctx, pipeline)
+	stream, err := r.collection.Watch(ctx, pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("watch outbox messages error: %w", err)
 	}

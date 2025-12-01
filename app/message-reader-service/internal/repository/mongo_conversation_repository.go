@@ -22,6 +22,7 @@ type MongoConversationRepository struct {
 	dbName         string
 	collectionName string
 	pageSize       int
+	collection     *mongo.Collection
 }
 
 // NewMongoConversationRepository creates a new instance of MongoConversationRepository.
@@ -31,6 +32,7 @@ func NewMongoConversationRepository(client *mongo.Client, dbName string, collect
 		dbName:         dbName,
 		collectionName: collectionName,
 		pageSize:       pageSize,
+		collection:     client.Database(dbName).Collection(collectionName),
 	}
 }
 
@@ -44,9 +46,6 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 	if before != "" && after != "" {
 		return nil, status.Error(codes.InvalidArgument, "only one of 'before' or 'after' can be set")
 	}
-
-	// Getting collection
-	col := r.client.Database(r.dbName).Collection(r.collectionName)
 
 	// MongoDB filter (by conversationId)
 	filter := bson.M{
@@ -112,7 +111,7 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 		SetLimit(int64(r.pageSize))
 
 	// Executing find query
-	cursor, err := col.Find(ctx, filter, opts)
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mongo find error: %v", err)
 	}

@@ -11,6 +11,7 @@ type MongoMessageRepository struct {
 	client         *mongo.Client
 	dbName         string
 	collectionName string
+	collection     *mongo.Collection
 }
 
 func NewMongoMessageRepository(client *mongo.Client, dbName string, collectionName string) *MongoMessageRepository {
@@ -18,6 +19,7 @@ func NewMongoMessageRepository(client *mongo.Client, dbName string, collectionNa
 		client:         client,
 		dbName:         dbName,
 		collectionName: collectionName,
+		collection:     client.Database(dbName).Collection(collectionName),
 	}
 }
 
@@ -26,8 +28,7 @@ func (r *MongoMessageRepository) Client() *mongo.Client {
 }
 
 func (r *MongoMessageRepository) WriteMessage(ctx mongo.SessionContext, message model.Message) error {
-	messageCollection := r.client.Database(r.dbName).Collection(r.collectionName)
-	_, err := messageCollection.InsertOne(ctx, message)
+	_, err := r.collection.InsertOne(ctx, message)
 	if err != nil {
 		return fmt.Errorf("insert message error: %w", err)
 	}

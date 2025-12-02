@@ -62,21 +62,24 @@ func (r *RabbitMQSource[T]) DeclareQueue(ctx context.Context) error {
 	return err
 }
 
-func (r *RabbitMQSource[T]) Events(ctx context.Context) <-chan EventEnvelope[T] {
+func (r *RabbitMQSource[T]) Events(ctx context.Context) (<-chan EventEnvelope[T], error) {
 	log := logger.FromContext(ctx)
 
 	// Create output channel
 	out := make(chan EventEnvelope[T])
 
-	msgs, _ := r.channel.Consume(
+	msgs, err := r.channel.Consume(
 		r.queue,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
+		"",    // consumer
+		false, // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 
@@ -105,7 +108,7 @@ func (r *RabbitMQSource[T]) Events(ctx context.Context) <-chan EventEnvelope[T] 
 		}
 	}()
 
-	return out
+	return out, nil
 }
 
 func (r *RabbitMQSource[T]) Ack(deliveryTag uint64) error {

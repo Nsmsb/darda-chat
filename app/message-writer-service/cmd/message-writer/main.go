@@ -9,9 +9,12 @@ import (
 
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/config"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/db"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/model"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/processor"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/repository"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/service"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/source"
+	"github.com/nsmsb/darda-chat/app/message-writer-service/internal/worker"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/logger"
 	"github.com/nsmsb/darda-chat/app/message-writer-service/pkg/rabbitmq"
 	"go.uber.org/zap"
@@ -43,23 +46,25 @@ func main() {
 		}
 	}()
 
+	// Initializing RabbitMQ channel
+	channel, err := conn.Channel()
+	if err != nil {
+		logger.Fatal("Failed to open a channel", zap.Error(err))
+	}
+	defer channel.Close()
+
 	// Preparing repositories
 	messageRepository := repository.NewMongoMessageRepository(dbClient, config.MongoDBName, config.MongoCollectionName)
 	outboxRepository := repository.NewMongoOutboxMessageRepository(dbClient, config.MongoDBName, fmt.Sprintf("%s_outbox", config.MongoCollectionName))
 
 	// Initializing Message consumer Service
+	messageSource := source.NewRabbitMQSource[model.Event](channel, config.MsgQueue)
 	processor := processor.NewMessageProcessor(messageRepository, outboxRepository, dbClient)
 	logger.Info("Initializing message consumer service")
-	consumerService := service.NewMessageConsumerService(config.MsgQueue, processor, conn, config.ConsumerPoolSize)
+	messageProcessingWorkerPool := worker.NewWorkerPool(messageSource, processor, config.ConsumerPoolSize)
 
 	// Initializing the message dispatcher service
-	dispatcherCh, err := conn.Channel()
-	if err != nil {
-		logger.Fatal("Failed to open a channel", zap.Error(err))
-	}
-	defer dispatcherCh.Close()
-
-	dispatcher := service.NewRabbitMQDispatcher(dispatcherCh, "message.dispatched")
+	dispatcher := service.NewRabbitMQDispatcher(channel, "message.dispatched")
 	dispatcherService := service.NewMessageDispatcherService(dispatcher, outboxRepository)
 
 	// Creating root context
@@ -69,7 +74,7 @@ func main() {
 	// Starting the message consumerService with context
 	go func() {
 		logger.Info("Starting message consumerService", zap.String("queue", config.MsgQueue))
-		err = consumerService.Start(ctx)
+		err = messageProcessingWorkerPool.Start(ctx)
 		if err != nil {
 			logger.Error("Failed to start message consumerService", zap.Error(err))
 			cancel()
@@ -98,7 +103,7 @@ func main() {
 	cancel()
 
 	// Wait for all workers and stop the consumerService
-	consumerService.Stop()
+	messageProcessingWorkerPool.Stop()
 
 	logger.Info("Gracefully shutting down the writer service")
 }

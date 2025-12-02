@@ -26,7 +26,7 @@ func NewMessageProcessor(messageRepository repository.MessageRepository, outboxM
 }
 
 // Process processes a message event and writes it to the database
-func (h *MessageProcessor) Process(ctx context.Context, event model.Event) error {
+func (h *MessageProcessor) Process(ctx context.Context, event *model.Event) error {
 	if event.Type == model.EventTypeMessage {
 		// Adding message to message and outbox collections
 		var msg model.Message

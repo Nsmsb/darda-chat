@@ -56,6 +56,10 @@ No production images are available for now, Skaffold will build and push the ima
 - [ ] Add seen, delivered, sent status
 - [ ] Develop the front end
 - [ ] Add Istio Service Mesh (Gateway)
-- [ ] Add Helm Charts
+- [ ] Add Authentication (Istio Gateway + OAuth2-Proxy + Gmail authentication)
+- [ ] Add Observability and Monitoring (Prometheus, Grafana, Opentelemetry)
+- [ ] Add notifications
 - [ ] Improve reliability (retries, circuit breaker.. etc)
+- [ ] Add end-to-end encryption
+- [ ] Add Helm Charts
 - [ ] Add support to enable/disable SSL verification

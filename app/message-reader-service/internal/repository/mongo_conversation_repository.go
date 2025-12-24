@@ -61,7 +61,7 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 
 		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
 
-		t, err := time.Parse(time.RFC3339, cursorTs)
+		t, err := time.Parse(time.RFC3339Nano, cursorTs)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid before timestamp: %v", err)
 		}
@@ -87,7 +87,7 @@ func (r *MongoConversationRepository) GetConversationMessages(ctx context.Contex
 
 		cursorTs, cursorID := splittedCursor[0], splittedCursor[1]
 
-		t, err := time.Parse(time.RFC3339, cursorTs)
+		t, err := time.Parse(time.RFC3339Nano, cursorTs)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid after timestamp: %v", err)
 		}

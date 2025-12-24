@@ -82,7 +82,7 @@ func (s *MessageService) GetMessages(ctx context.Context, request *pb.GetMessage
 		protoMsg.Sender = msg.Sender
 
 		// destination
-		protoMsg.Destination = msg.Sender
+		protoMsg.Destination = msg.Destination
 
 		// content
 		protoMsg.Content = msg.Content

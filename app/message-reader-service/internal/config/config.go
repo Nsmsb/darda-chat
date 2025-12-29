@@ -40,6 +40,7 @@ var (
 // Get returns the singleton instance of Config, it reads the configs only once.
 func Get() *Config {
 	var messagesPageSize, redisDB, workerPoolSize int = 20, 0, 10 // default value
+	var cacheTTLDefault time.Duration = 6 * time.Hour
 	var err error
 	redisDB, err = strconv.Atoi(getEnv("REDIS_DB", "0"))
 	if err != nil {
@@ -51,6 +52,7 @@ func Get() *Config {
 	}
 	cacheTTL, err := time.ParseDuration(getEnv("CACHE_TTL_HOURS", "6h"))
 	if err != nil {
+		cacheTTL = cacheTTLDefault
 		logger.Get().Error("Invalid CACHE_TTL_HOURS, using default", zap.Duration("value", cacheTTL), zap.Error(err))
 	}
 	workerPoolSizeEnv := getEnv("WORKER_POOL_SIZE", "")

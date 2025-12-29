@@ -83,10 +83,10 @@ func (s MessageDispatcherService) processMessages(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("start session error: %w", err)
 		}
-		defer session.EndSession(ctx)
 
 		// Executing the transaction
 		_, err = session.WithTransaction(ctx, callback)
+		session.EndSession(ctx)
 		if err != nil {
 			return fmt.Errorf("transaction error: %w", err)
 		}

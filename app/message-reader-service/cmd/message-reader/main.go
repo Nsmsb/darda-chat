@@ -85,9 +85,9 @@ func main() {
 	conversationCacheRepo := repository.NewRedisConversationCacheRepository(redisClient, config.CacheTTL)
 
 	// Preparing cache update worker
-	cahcheUpdateProcessor := processor.NewCacheUpdateProcessor(conversationCacheRepo)
+	cacheUpdateProcessor := processor.NewCacheUpdateProcessor(conversationCacheRepo)
 	amqpSource := source.NewRabbitMQSource[model.Message](amqpChannel, config.MsgExchange, config.MsgQueue)
-	caheUpdateWorkerPool := worker.NewWorkerPool[model.Message](amqpSource, cahcheUpdateProcessor, config.WorkerPoolSize)
+	cacheUpdateWorkerPool := worker.NewWorkerPool[model.Message](amqpSource, cacheUpdateProcessor, config.WorkerPoolSize)
 
 	// Create gRPC server with already registered handlers
 	s := server.NewMessageGRPCServer(conversationRepo, conversationCacheRepo)
@@ -103,7 +103,7 @@ func main() {
 	// Start cache update worker pool
 	go func() {
 		logger.Info("Starting cache update worker pool", zap.Int("poolSize", config.WorkerPoolSize))
-		if err := caheUpdateWorkerPool.Start(context.Background()); err != nil {
+		if err := cacheUpdateWorkerPool.Start(context.Background()); err != nil {
 			logger.Error("Error starting cache update worker pool", zap.Error(err))
 			panic(err)
 		}
@@ -114,6 +114,6 @@ func main() {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 	s.GracefulStop()
-	caheUpdateWorkerPool.Stop()
+	cacheUpdateWorkerPool.Stop()
 	fmt.Println("server stopped")
 }

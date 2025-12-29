@@ -58,7 +58,7 @@ func Get() *Config {
 		if val, err := strconv.Atoi(workerPoolSizeEnv); err == nil {
 			workerPoolSize = val
 		} else {
-			logger.Get().Error("Invalid CONSUMER_POOL_SIZE, using default", zap.String("value", workerPoolSizeEnv), zap.Error(err))
+			logger.Get().Error("Invalid WORKER_POOL_SIZE, using default", zap.String("value", workerPoolSizeEnv), zap.Error(err))
 		}
 	}
 

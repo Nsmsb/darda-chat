@@ -94,3 +94,5 @@ func (service *RedisMessageService) Close() error {
 	// Close the Redis client and return any error
 	return service.client.Close()
 }
+
+// TODO: Switch to service-chat level routing to scale to millions of users

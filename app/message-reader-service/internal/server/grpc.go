@@ -12,7 +12,6 @@ import (
 // NewMessageGRPCServer creates and returns a new gRPC server with registered message service and interceptors.
 func NewMessageGRPCServer(conversationRepo repository.ConversationRepository, conversationCacheRepo repository.ConversationCacheRepository) *grpc.Server {
 	logger := logger.Get()
-	defer logger.Sync()
 
 	// Create server and add interceptors
 	server := grpc.NewServer(

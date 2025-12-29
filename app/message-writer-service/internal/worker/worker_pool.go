@@ -51,7 +51,7 @@ func (wp *WorkerPool[T]) Start(ctx context.Context) error {
 		case <-ctx.Done():
 
 			return ctx.Err()
-		case EventEnvelope := <-events:
+		case eventEnvelope := <-events:
 			// Acquire a worker slot.
 			wp.workers <- struct{}{}
 			wp.wg.Add(1)
@@ -73,17 +73,17 @@ func (wp *WorkerPool[T]) Start(ctx context.Context) error {
 				err := wp.processor.Process(ctx, eventEnvelope.Payload)
 				if err != nil {
 					log.Error("Error processing event", zap.String("event_id", eventEnvelope.ID), zap.Error(err))
-					wp.source.Nack(EventEnvelope.DeliveryTag, true)
+					wp.source.Nack(eventEnvelope.DeliveryTag, true)
 					return
 				}
 				// Acknowledge the event upon successful processing.
-				err = wp.source.Ack(EventEnvelope.DeliveryTag)
+				err = wp.source.Ack(eventEnvelope.DeliveryTag)
 				if err != nil {
 					log.Error("Error acknowledging event", zap.String("event_id", eventEnvelope.ID), zap.Error(err))
 					return
 				}
 				log.Info("Successfully processed event", zap.String("event_id", eventEnvelope.ID))
-			}(EventEnvelope)
+			}(eventEnvelope)
 		}
 	}
 }

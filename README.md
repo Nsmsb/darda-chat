@@ -6,7 +6,7 @@ Scalable chat application (Go, MongoDB, Redis, RabbitMQ)
 
 ## Design overview
 
-Darda-chat's design follows a **decoupled, event-driven architecture** optimized for scalability and fault tolerance:
+Darda-chat's design follows a **decoupled, event-driven architecture** optimized for scalability and fault tolerance, applied patterns includes: indexing, cursor pagination, CQRS, eventual consistency, stateless WebSocket servers, gRPC and Outbox pattern.
 
 - **Gateway (Istio)**
   - Handles authentication, rate limiting, and load balancing

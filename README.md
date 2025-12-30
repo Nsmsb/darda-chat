@@ -4,6 +4,45 @@ Scalable chat application (Go, MongoDB, Redis, RabbitMQ)
 
 ![Design of Darda-chat](https://github.com/user-attachments/assets/b8462dfa-34ce-4cdd-a648-738c107fa115)
 
+## Design overview
+
+Darda-chat's design follows a **decoupled, event-driven architecture** optimized for scalability and fault tolerance, applied patterns includes: indexing, cursor pagination, CQRS, eventual consistency, stateless WebSocket servers, gRPC and Outbox pattern.
+
+- **Gateway (Istio)**
+  - Handles authentication, rate limiting, and load balancing
+  - Routes traffic to services
+
+- **WebSocket Servers**
+  - Manage active client connections
+  - Publish messages and user status updates
+  - Support horizontal scaling using redis sub/pub
+  - Handle users's multiple client connections using the same redis pub/sub channel (one channel at most per user) in linear time
+  - Handle slow clients gracefully using buffered channels and terminate connection if client reaches buffer limit
+
+- **Redis**
+  - Pub/Sub for real-time message fan-out to enable WS servers horizontal scaling
+  - Caching for messages, store online states
+
+- **RabbitMQ**
+  - Decouples real-time messaging from persistence
+
+- **Messages Writer Service**
+  - Consumes messages from RabbitMQ and persists messages to MongoDB
+  - Notify read services about new messages by publishing Persistent Message events to RabbitMQ in a reliable way using outbox pattern
+
+- **Messages Reader Service**
+  - Loads chat history messages from MongoDB, with pagination supported
+  - Updates message cache
+
+- **MongoDB**
+  - Stores users and chat messages
+  - Runs as a replica set to support Transactions
+
+This design allows:
+
+- Independent scaling of WebSocket servers, reads and writes services
+- Resilient message handling
+- Eventual consistency with fast real-time delivery
 
 ## Prerequisites
 
@@ -52,6 +91,7 @@ No production images are available for now, Skaffold will build and push the ima
 - [x] Add Messages DB (MongoDB) and messages persistence (Async write using Message broker)
 - [x] Add History loading when connected
 - [x] Add messages caching, logic to handle lost messages when a user connect after message is sent to message queue.
+- [ ] Switch to local message routing instead of one redis channel per user for better scalability
 - [ ] Add seen, delivered, sent status
 - [ ] Develop the front end
 - [ ] Add Istio Service Mesh (Gateway)
